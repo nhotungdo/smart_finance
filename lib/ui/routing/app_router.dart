@@ -4,7 +4,6 @@ import 'package:smart_finance/ui/screens/auth/splash_screen.dart';
 import 'package:smart_finance/ui/screens/auth/login_screen.dart';
 import 'package:smart_finance/ui/screens/auth/register_screen.dart';
 import 'package:smart_finance/ui/screens/dashboard/dashboard_screen.dart';
-import 'package:smart_finance/ui/screens/banking/banking_screen.dart';
 import 'package:smart_finance/ui/screens/expenses/expenses_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoicing_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/create_invoice_screen.dart';
@@ -41,10 +40,6 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/dashboard',
           builder: (context, state) => const DashboardScreen(),
-        ),
-        GoRoute(
-          path: '/banking',
-          builder: (context, state) => const BankingScreen(),
         ),
         GoRoute(
           path: '/expenses',

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:smart_finance/ui/widgets/glass_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:smart_finance/ui/widgets/glass_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 
@@ -46,19 +45,21 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildDesktopLayout(BuildContext context, ThemeData theme) {
     return Column(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 4,
-              child: _buildTotalBalanceCard(context, theme),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 8,
-              child: _buildCashFlowChart(context, theme),
-            ),
-          ],
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 4,
+                child: _buildTotalBalanceCard(context, theme),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 8,
+                child: _buildCashFlowChart(context, theme),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         Row(

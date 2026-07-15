@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:smart_finance/ui/widgets/glass_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 
@@ -176,9 +175,11 @@ class InvoicingScreen extends StatelessWidget {
     ];
 
     if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       );
     } else {
       return Column(

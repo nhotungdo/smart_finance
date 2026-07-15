@@ -224,9 +224,11 @@ class CreateInvoiceScreen extends StatelessWidget {
     ];
 
     if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       );
     } else {
       return Column(
@@ -529,9 +531,11 @@ class CreateInvoiceScreen extends StatelessWidget {
     ];
 
     if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       );
     } else {
       return Column(

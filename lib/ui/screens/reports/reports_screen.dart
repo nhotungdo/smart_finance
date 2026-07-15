@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:smart_finance/ui/widgets/glass_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 
@@ -180,16 +179,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 4,
+              Column(
                 children: [
-                  _buildLegendItem(theme, 'Lương (45%)', theme.colorScheme.primary),
-                  _buildLegendItem(theme, 'Phần mềm (25%)', theme.colorScheme.secondary),
-                  _buildLegendItem(theme, 'Tiếp thị (20%)', theme.colorScheme.tertiaryContainer),
-                  _buildLegendItem(theme, 'Khác (10%)', theme.colorScheme.outline),
+                  Row(
+                    children: [
+                      Expanded(child: _buildLegendItem(theme, 'Lương (45%)', theme.colorScheme.primary)),
+                      Expanded(child: _buildLegendItem(theme, 'Phần mềm (25%)', theme.colorScheme.secondary)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: _buildLegendItem(theme, 'Tiếp thị (20%)', theme.colorScheme.tertiaryContainer)),
+                      Expanded(child: _buildLegendItem(theme, 'Khác (10%)', theme.colorScheme.outline)),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -199,9 +203,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     ];
 
     if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       );
     } else {
       return Column(

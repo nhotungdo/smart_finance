@@ -46,8 +46,12 @@ class AppTheme {
         brightness: Brightness.dark,
         seedColor: const Color(0xFF4EDEA3),
         primary: const Color(0xFF4EDEA3),
-        secondary: const Color(0xFF0D1C32),
-        surface: const Color(0xFF132847),
+        onPrimary: const Color(0xFF003822),
+        secondary: const Color(0xFF334155),
+        onSecondary: const Color(0xFFF8F9FA),
+        surface: const Color(0xFF1E293B),
+        onSurface: const Color(0xFFF8F9FA),
+        onSurfaceVariant: const Color(0xFF94A3B8),
         error: const Color(0xFFFF8A8A),
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
@@ -63,10 +67,27 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: const Color(0xFFF8F9FA),
         ),
+        titleMedium: GoogleFonts.plusJakartaSans(
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFFE2E8F0),
+        ),
+        bodyLarge: GoogleFonts.inter(
+          color: const Color(0xFFF8F9FA),
+        ),
+        bodyMedium: GoogleFonts.inter(
+          color: const Color(0xFFE2E8F0),
+        ),
+        bodySmall: GoogleFonts.inter(
+          color: const Color(0xFF94A3B8),
+        ),
+        labelLarge: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFFF8F9FA),
+        ),
       ),
-      scaffoldBackgroundColor: const Color(0xFF070F1C),
+      scaffoldBackgroundColor: const Color(0xFF0F172A),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0D1C32),
+        backgroundColor: Color(0xFF0F172A),
         elevation: 0,
         iconTheme: IconThemeData(color: Color(0xFFF8F9FA)),
         titleTextStyle: TextStyle(

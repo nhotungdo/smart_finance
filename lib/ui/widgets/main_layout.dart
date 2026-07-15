@@ -31,7 +31,6 @@ class MainLayout extends ConsumerWidget {
     if (location.startsWith('/invoicing')) return 1;
     if (location.startsWith('/expenses')) return 2;
     if (location.startsWith('/reports')) return 3;
-    if (location.startsWith('/banking')) return 4;
     return 0;
   }
 
@@ -48,9 +47,6 @@ class MainLayout extends ConsumerWidget {
         break;
       case 3:
         context.go('/reports');
-        break;
-      case 4:
-        context.go('/banking');
         break;
     }
   }
@@ -81,7 +77,6 @@ class MainLayout extends ConsumerWidget {
             _buildDesktopNavItem(context, 'Hóa đơn', '/invoicing', currentIndex == 1),
             _buildDesktopNavItem(context, 'Chi phí', '/expenses', currentIndex == 2),
             _buildDesktopNavItem(context, 'Báo cáo', '/reports', currentIndex == 3),
-            _buildDesktopNavItem(context, 'Ngân hàng', '/banking', currentIndex == 4),
             const SizedBox(width: 16),
             IconButton(
               icon: Icon(theme.brightness == Brightness.dark ? Icons.light_mode : Icons.dark_mode),
@@ -182,10 +177,6 @@ class MainLayout extends ConsumerWidget {
         BottomNavigationBarItem(
           icon: Icon(Icons.bar_chart),
           label: 'Báo cáo',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Ngân hàng',
         ),
       ],
     );
