@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:smart_finance/ui/widgets/page_header.dart';
+
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -16,19 +21,9 @@ class DashboardScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Welcome Section
-              Text(
-                'Tổng quan',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Dưới đây là tóm tắt tài chính của bạn hôm nay.",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              const PageHeader(
+                title: 'Tổng quan',
+                subtitle: 'Dưới đây là tóm tắt tài chính của bạn hôm nay.',
               ),
               const SizedBox(height: 32),
 
@@ -99,7 +94,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildTotalBalanceCard(BuildContext context, ThemeData theme) {
-    return _GlassCard(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -145,7 +140,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildCashFlowChart(BuildContext context, ThemeData theme) {
-    return _GlassCard(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -184,53 +179,60 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          // Placeholder for actual chart
           SizedBox(
-            height: 150,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildBar(0.4, theme.colorScheme.secondary),
-                _buildBar(0.2, theme.colorScheme.error),
-                _buildBar(0.6, theme.colorScheme.secondary),
-                _buildBar(0.3, theme.colorScheme.error),
-                _buildBar(0.8, theme.colorScheme.secondary),
-                _buildBar(0.45, theme.colorScheme.error),
-                _buildBar(0.9, theme.colorScheme.secondary),
-              ],
+            height: 180,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: 1,
+                barTouchData: BarTouchData(enabled: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const style = TextStyle(fontSize: 12);
+                        Widget text;
+                        switch (value.toInt()) {
+                          case 0: text = const Text('T2', style: style); break;
+                          case 1: text = const Text('T3', style: style); break;
+                          case 2: text = const Text('T4', style: style); break;
+                          case 3: text = const Text('T5', style: style); break;
+                          case 4: text = const Text('T6', style: style); break;
+                          case 5: text = const Text('T7', style: style); break;
+                          case 6: text = const Text('CN', style: style); break;
+                          default: text = const Text('', style: style); break;
+                        }
+                        return SideTitleWidget(meta: meta, child: text);
+                      },
+                    ),
+                  ),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                barGroups: [
+                  BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 0.4, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 0.2, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 0.6, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 0.3, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 0.8, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 5, barRods: [BarChartRodData(toY: 0.45, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                  BarChartGroupData(x: 6, barRods: [BarChartRodData(toY: 0.9, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-                .map((day) => Text(
-                      day,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ))
-                .toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBar(double fillRatio, Color color) {
-    return Container(
-      width: 24,
-      height: 150 * fillRatio,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.8),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      ),
-    );
-  }
-
   Widget _buildUpcomingBills(BuildContext context, ThemeData theme, bool isDesktop) {
-    return _GlassCard(
+    return GlassCard(
       padding: isDesktop ? EdgeInsets.zero : const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -323,7 +325,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildRecentTransactions(BuildContext context, ThemeData theme, bool isDesktop) {
-    return _GlassCard(
+    return GlassCard(
       padding: isDesktop ? EdgeInsets.zero : const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -559,31 +561,4 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
 
-  const _GlassCard({required this.child, this.padding = const EdgeInsets.all(24)});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: child,
-    );
-  }
-}

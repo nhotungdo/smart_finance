@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:smart_finance/ui/widgets/page_header.dart';
+
 
 class ExpensesScreen extends StatelessWidget {
   const ExpensesScreen({super.key});
@@ -13,7 +17,17 @@ class ExpensesScreen extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1440),
-          child: isDesktop ? _buildDesktopLayout(context, theme) : _buildMobileLayout(context, theme),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PageHeader(
+                title: 'Chi phí',
+                subtitle: 'Theo dõi chi phí và quản lý hóa đơn hàng tháng.',
+              ),
+              const SizedBox(height: 32),
+              isDesktop ? _buildDesktopLayout(context, theme) : _buildMobileLayout(context, theme),
+            ],
+          ),
         ),
       ),
     );
@@ -51,7 +65,7 @@ class ExpensesScreen extends StatelessWidget {
     return Column(
       children: [
         // Monthly Budget Card
-        _GlassCard(
+        GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -224,7 +238,7 @@ class ExpensesScreen extends StatelessWidget {
 
   Widget _buildExpensesList(BuildContext context, ThemeData theme, bool isDesktop) {
     if (isDesktop) {
-      return _GlassCard(
+      return GlassCard(
         padding: EdgeInsets.zero,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -321,7 +335,7 @@ class ExpensesScreen extends StatelessWidget {
         ),
       );
     } else {
-      return _GlassCard(
+      return GlassCard(
         padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -463,31 +477,4 @@ class ExpensesScreen extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
 
-  const _GlassCard({required this.child, this.padding = const EdgeInsets.all(24)});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: child,
-    );
-  }
-}

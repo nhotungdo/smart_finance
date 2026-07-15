@@ -37,7 +37,8 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Flutter.main.dart.executor": "Run",
-    "dart.analysis.tool.window.visible": "false"
+    "dart.analysis.tool.window.visible": "false",
+    "io.flutter.reload.alreadyRun": "true"
   }
 }]]></component>
   <component name="TaskManager">

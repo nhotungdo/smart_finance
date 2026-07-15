@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class InvoicePreviewScreen extends StatelessWidget {
   const InvoicePreviewScreen({super.key});
@@ -26,7 +27,7 @@ class InvoicePreviewScreen extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back),
-                          onPressed: () {},
+                          onPressed: () => context.pop(),
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
@@ -42,7 +43,7 @@ class InvoicePreviewScreen extends StatelessWidget {
                     Row(
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: () => context.pop(),
                           icon: const Icon(Icons.edit, size: 18),
                           label: const Text('Chỉnh sửa'),
                           style: OutlinedButton.styleFrom(
@@ -53,7 +54,7 @@ class InvoicePreviewScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton.icon(
-                          onPressed: () {},
+                          onPressed: () => context.push('/invoicing/sent'),
                           icon: const Icon(Icons.send, size: 18),
                           label: const Text('Gửi hóa đơn'),
                           style: ElevatedButton.styleFrom(

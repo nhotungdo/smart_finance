@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class CreateInvoiceScreen extends StatelessWidget {
   const CreateInvoiceScreen({super.key});
@@ -27,11 +28,11 @@ class CreateInvoiceScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Line Items
-                _buildLineItems(theme, isDesktop),
+                _buildLineItems(context, theme, isDesktop),
                 const SizedBox(height: 24),
 
                 // Totals & Notes
-                _buildTotalsAndNotes(theme, isDesktop),
+                _buildTotalsAndNotes(context, theme, isDesktop),
               ],
             ),
           ),
@@ -234,7 +235,7 @@ class CreateInvoiceScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildLineItems(ThemeData theme, bool isDesktop) {
+  Widget _buildLineItems(BuildContext context, ThemeData theme, bool isDesktop) {
     return _GlassCard(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -266,7 +267,7 @@ class CreateInvoiceScreen extends StatelessWidget {
             ),
           const SizedBox(height: 16),
           // Single row placeholder
-          _buildItemRow(theme, isDesktop),
+          _buildItemRow(context, theme, isDesktop),
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: () {},
@@ -282,7 +283,7 @@ class CreateInvoiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildItemRow(ThemeData theme, bool isDesktop) {
+  Widget _buildItemRow(BuildContext context, ThemeData theme, bool isDesktop) {
     if (isDesktop) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -361,7 +362,7 @@ class CreateInvoiceScreen extends StatelessWidget {
             children: [
               Text('Thành tiền:', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               Text('\$0.00', style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.close), color: theme.colorScheme.onSurfaceVariant),
+              IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.close), color: theme.colorScheme.onSurfaceVariant),
             ],
           ),
           const Divider(),
@@ -386,7 +387,7 @@ class CreateInvoiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalsAndNotes(ThemeData theme, bool isDesktop) {
+  Widget _buildTotalsAndNotes(BuildContext context, ThemeData theme, bool isDesktop) {
     final children = [
       Expanded(
         flex: 1,
@@ -498,7 +499,7 @@ class CreateInvoiceScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => context.pop(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       side: BorderSide(color: theme.colorScheme.primary),
@@ -509,7 +510,7 @@ class CreateInvoiceScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton.icon(
-                    onPressed: () {}, // Will navigate to preview
+                    onPressed: () => context.push('/invoicing/preview'), // Will navigate to preview
                     icon: const Icon(Icons.visibility),
                     label: const Text('Xem trước'),
                     style: ElevatedButton.styleFrom(

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:smart_finance/ui/widgets/page_header.dart';
+
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -26,38 +30,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header & Toggle
-                Flex(
-                  direction: isDesktop ? Axis.horizontal : Axis.vertical,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: isDesktop ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Báo cáo tài chính',
-                          style: isDesktop
-                              ? theme.textTheme.headlineLarge?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                )
-                              : theme.textTheme.headlineMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Thông tin trực quan cho doanh nghiệp của bạn.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!isDesktop) const SizedBox(height: 16),
-                    _buildToggle(theme),
-                  ],
+                PageHeader(
+                  title: 'Báo cáo tài chính',
+                  subtitle: 'Thông tin trực quan cho doanh nghiệp của bạn.',
+                  action: _buildToggle(theme),
                 ),
                 const SizedBox(height: 32),
 
@@ -106,7 +82,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final children = [
       Expanded(
         flex: isDesktop ? 2 : 1,
-        child: _GlassCard(
+        child: GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -170,7 +146,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (isDesktop) const SizedBox(width: 24) else const SizedBox(height: 24),
       Expanded(
         flex: 1,
-        child: _GlassCard(
+        child: GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -259,7 +235,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildSummaryTable(BuildContext context, ThemeData theme, bool isDesktop) {
-    return _GlassCard(
+    return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,22 +453,13 @@ class _ToggleButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? theme.colorScheme.primaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  )
-                ]
-              : null,
         ),
         child: Text(
           title,
           style: theme.textTheme.labelMedium?.copyWith(
-            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
@@ -501,31 +468,3 @@ class _ToggleButton extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassCard({required this.child, this.padding = const EdgeInsets.all(24)});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: child,
-    );
-  }
-}

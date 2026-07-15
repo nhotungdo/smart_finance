@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:smart_finance/ui/widgets/page_header.dart';
+
 
 class BankingScreen extends StatelessWidget {
   const BankingScreen({super.key});
@@ -17,53 +21,24 @@ class BankingScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Section
-              Flex(
-                direction: isDesktop ? Axis.horizontal : Axis.vertical,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: isDesktop ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ngân hàng & Tài khoản',
-                        style: isDesktop
-                            ? theme.textTheme.headlineLarge?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              )
-                            : theme.textTheme.headlineMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Quản lý các tài khoản đã liên kết và thanh khoản của bạn.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (!isDesktop) const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.add),
-                    label: const Text('Liên kết tài khoản mới'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      textStyle: theme.textTheme.labelLarge,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+              PageHeader(
+                title: 'Ngân hàng & Tài khoản',
+                subtitle: 'Quản lý các tài khoản đã liên kết và thanh khoản của bạn.',
+                action: ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add),
+                  label: const Text('Liên kết tài khoản mới'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    textStyle: theme.textTheme.labelLarge,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 32),
 
               // Layout
               LayoutBuilder(
@@ -96,7 +71,7 @@ class BankingScreen extends StatelessWidget {
 
   Widget _buildRecentActivity(BuildContext context, ThemeData theme, bool isDesktop) {
     if (isDesktop) {
-      return _GlassCard(
+      return GlassCard(
         padding: EdgeInsets.zero,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -157,7 +132,7 @@ class BankingScreen extends StatelessWidget {
         ),
       );
     } else {
-      return _GlassCard(
+      return GlassCard(
         padding: EdgeInsets.zero,
         child: Column(
           children: [
@@ -342,7 +317,7 @@ class BankingScreen extends StatelessWidget {
     required Color iconBg,
     required Color iconColor,
   }) {
-    return _GlassCard(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -499,31 +474,4 @@ class BankingScreen extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
 
-  const _GlassCard({required this.child, this.padding = const EdgeInsets.all(24)});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: child,
-    );
-  }
-}

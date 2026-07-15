@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class InvoiceSentScreen extends StatelessWidget {
   const InvoiceSentScreen({super.key});
@@ -235,7 +236,7 @@ class InvoiceSentScreen extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () => context.go('/invoicing'),
                               style: ElevatedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 backgroundColor: theme.colorScheme.primary,

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_finance/providers/theme_provider.dart';
 
-class MainLayout extends StatelessWidget {
+class MainLayout extends ConsumerWidget {
   final Widget child;
 
   const MainLayout({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final size = MediaQuery.sizeOf(context);
     final isDesktop = size.width > 768; // Based on md breakpoint in Tailwind
@@ -17,7 +19,7 @@ class MainLayout extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: isDesktop ? _buildTopAppBar(context, theme, currentIndex) : _buildMobileAppBar(context, theme),
+      appBar: isDesktop ? _buildTopAppBar(context, theme, currentIndex, ref) : _buildMobileAppBar(context, theme, ref),
       body: child,
       bottomNavigationBar: isDesktop ? null : _buildBottomNavBar(context, theme, currentIndex),
     );
@@ -53,7 +55,7 @@ class MainLayout extends StatelessWidget {
     }
   }
 
-  PreferredSizeWidget _buildTopAppBar(BuildContext context, ThemeData theme, int currentIndex) {
+  PreferredSizeWidget _buildTopAppBar(BuildContext context, ThemeData theme, int currentIndex, WidgetRef ref) {
     return AppBar(
       backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
       elevation: 0,
@@ -82,6 +84,14 @@ class MainLayout extends StatelessWidget {
             _buildDesktopNavItem(context, 'Ngân hàng', '/banking', currentIndex == 4),
             const SizedBox(width: 16),
             IconButton(
+              icon: Icon(theme.brightness == Brightness.dark ? Icons.light_mode : Icons.dark_mode),
+              color: theme.colorScheme.primary,
+              onPressed: () {
+                ref.read(themeProvider.notifier).toggleTheme();
+              },
+            ),
+            const SizedBox(width: 16),
+            IconButton(
               icon: const Icon(Icons.notifications),
               color: theme.colorScheme.primary,
               onPressed: () {},
@@ -93,7 +103,7 @@ class MainLayout extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildMobileAppBar(BuildContext context, ThemeData theme) {
+  PreferredSizeWidget _buildMobileAppBar(BuildContext context, ThemeData theme, WidgetRef ref) {
     return AppBar(
       backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
       elevation: 0,
@@ -112,6 +122,13 @@ class MainLayout extends StatelessWidget {
         ],
       ),
       actions: [
+        IconButton(
+          icon: Icon(theme.brightness == Brightness.dark ? Icons.light_mode : Icons.dark_mode),
+          color: theme.colorScheme.primary,
+          onPressed: () {
+            ref.read(themeProvider.notifier).toggleTheme();
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.notifications),
           color: theme.colorScheme.primary,
