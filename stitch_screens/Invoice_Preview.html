@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Invoice Preview - SmartFinance</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eceef0",
+                        "on-secondary-container": "#00714d",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#e1e0ff",
+                        "primary-container": "#0d1c32",
+                        "secondary-fixed-dim": "#4edea3",
+                        "secondary-fixed": "#6ffbbe",
+                        "surface-tint": "#515f78",
+                        "surface": "#f7f9fb",
+                        "surface-container-high": "#e6e8ea",
+                        "primary-fixed": "#d6e3ff",
+                        "on-tertiary-container": "#7073ff",
+                        "on-error-container": "#93000a",
+                        "primary": "#000000",
+                        "on-surface-variant": "#44474d",
+                        "background": "#f7f9fb",
+                        "secondary": "#006c49",
+                        "on-tertiary-fixed": "#07006c",
+                        "on-primary-container": "#76849f",
+                        "tertiary-container": "#07006c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#39475f",
+                        "on-tertiary-fixed-variant": "#2f2ebe",
+                        "outline-variant": "#c5c6cd",
+                        "on-secondary-fixed": "#002113",
+                        "tertiary": "#000000",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2d3133",
+                        "surface-bright": "#f7f9fb",
+                        "outline": "#75777e",
+                        "surface-container-highest": "#e0e3e5",
+                        "inverse-primary": "#b9c7e4",
+                        "on-primary-fixed": "#0d1c32",
+                        "secondary-container": "#6cf8bb",
+                        "on-surface": "#191c1e",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "surface-container-low": "#f2f4f6",
+                        "primary-fixed-dim": "#b9c7e4",
+                        "surface-variant": "#e0e3e5",
+                        "surface-dim": "#d8dadc",
+                        "tertiary-fixed-dim": "#c0c1ff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#005236"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "gutter": "24px",
+                        "max-width": "1440px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Inter"],
+                        "mono-data": ["Inter"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["48px", { "lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "mono-data": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Ambient Shadow Level 2 */
+        .shadow-ambient-2 {
+            box-shadow: 0px 10px 15px -3px rgba(10, 25, 47, 0.1);
+        }
+        
+        /* Elevated Hover */
+        .hover-elevate {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .hover-elevate:hover {
+            transform: translateY(-4px);
+            box-shadow: 0px 15px 20px -5px rgba(10, 25, 47, 0.12);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:flex-row">
+<!-- NavigationDrawer (Web) -->
+<nav class="hidden md:flex bg-surface-container-lowest text-primary h-full w-80 rounded-r-xl border-r border-outline-variant/30 shadow-xl fixed left-0 top-0 flex-col py-6 z-40 transition-all duration-300 ease-in-out">
+<div class="px-6 mb-8 flex items-center gap-4 left_align">
+<div class="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-outline-variant/30">
+<img alt="Business Owner" class="w-full h-full object-cover" data-alt="A professional headshot of a business owner in their 30s, smiling warmly. The lighting is soft and corporate, set against a clean, minimal white background. The image style is bright, modern, and high-quality, fitting a fintech application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAawHfC6u-UKG7gxSf1rainldCLhFEO9x1gUvEsx_zScmEy8TSu74YDrAbrI3PmAgHCa539cLXItRd4VUwfBW7i8juDPIMH7tfF6r6KihQoYSZqIBWfN3y7fCcOTlqb1xbBBgwgjNij4YKirAG2nA9aQ2QiFCRjq85xHaRjYSWAFNfTFnT0rl3shsHvqjqHOZ1m0lk2zY5rtVpw9cwfxvCqdI5NsvKrPH6dbcbs21czWQzfKvTsXOl100ED_rMXGuzW12rmxb2b7JAG"/>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md font-bold text-primary">SmartFinance SME</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Growth Tier Plan</p>
+<p class="font-label-md text-label-md text-secondary mt-1">Verified Account</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto mt-4 space-y-2">
+<a class="flex items-center gap-4 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-container-high rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 bg-primary-container text-on-primary-container rounded-lg px-4 py-3 mx-2 transition-colors" href="#">
+<span class="material-symbols-outlined" data-weight="fill">receipt_long</span>
+<span class="font-body-md text-body-md font-medium">Invoices</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-container-high rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-body-md text-body-md">Expenses</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-container-high rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-body-md text-body-md">Reports</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-container-high rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="font-body-md text-body-md">Accounts</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-container-high rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+</nav>
+<!-- TopAppBar (Web & Mobile Header) -->
+<header class="bg-surface/80 backdrop-blur-md fixed top-0 w-full z-50 border-b border-outline-variant/30 shadow-sm md:hidden">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full mx-auto">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-outline-variant/30">
+<img alt="Business Owner" class="w-full h-full object-cover" data-alt="A professional headshot of a business owner in their 30s, smiling warmly. The lighting is soft and corporate, set against a clean, minimal white background. The image style is bright, modern, and high-quality, fitting a fintech application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBM3t1MN8Ur84vv9UdikZ2BAJvSl-Wou4bbu9_sezWhsGkKDhzzJeFPHW20wIvs9jYfEtg7RmesaB_vb3ZLGurTcsXitJnseAWFJbLWtHb7C6mGoaH1J6wgB6lBuDkgi4hB-C9SMDywckzE1FgcDJcIr8kwSLOebedM4o1hFlc9IsWCaQjATdgvcilyDp77BAf77-6WuqsNlhsjKLLcwLCISlvRAuxB1doZ6oQyoB1F9uagedXUDDLXkXPBflnbe1OOwzesDXl8naQg"/>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">SmartFinance</h1>
+</div>
+<button class="text-primary hover:bg-surface-container-low transition-colors rounded-full p-2 active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 w-full max-w-max-width mx-auto pt-20 md:pt-12 pb-28 md:pb-12 md:pl-80 px-margin-mobile md:px-margin-desktop transition-all">
+<!-- Action Bar -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+<div>
+<a class="inline-flex items-center text-on-surface-variant hover:text-primary transition-colors font-label-md text-label-md mb-2" href="#">
+<span class="material-symbols-outlined text-[16px] mr-1">arrow_back</span>
+                    Back to Invoices
+                </a>
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">Invoice Preview</h2>
+</div>
+<div class="flex gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none px-6 py-2.5 rounded-lg border border-primary text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+                    Edit
+                </button>
+<button class="flex-1 sm:flex-none px-6 py-2.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">send</span>
+                    Send Invoice
+                </button>
+</div>
+</div>
+<!-- Document Preview Container -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-ambient-2 overflow-hidden mx-auto max-w-4xl hover-elevate">
+<!-- Document Paper Edge Decoration -->
+<div class="h-2 w-full bg-gradient-to-r from-secondary-fixed-dim to-secondary-fixed"></div>
+<div class="p-6 md:p-12">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start border-b border-outline-variant/30 pb-8 mb-8 gap-8">
+<div class="flex flex-col gap-4">
+<!-- Brand Logo -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-2xl">account_balance</span>
+</div>
+<span class="font-headline-md text-headline-md font-bold text-primary">SmartFinance</span>
+</div>
+<div class="text-on-surface-variant font-body-sm text-body-sm mt-2">
+<p class="font-semibold text-primary">SmartFinance SME Ltd.</p>
+<p>123 Financial District, Suite 400</p>
+<p>New York, NY 10004</p>
+<p>contact@smartfinance.com</p>
+<p>+1 (555) 123-4567</p>
+</div>
+</div>
+<div class="text-left md:text-right w-full md:w-auto">
+<h3 class="font-headline-lg text-headline-lg text-primary mb-4">INVOICE</h3>
+<div class="grid grid-cols-2 md:grid-cols-1 gap-2 font-body-sm text-body-sm">
+<div class="flex justify-between md:justify-end gap-4">
+<span class="text-on-surface-variant font-semibold">Invoice No:</span>
+<span class="font-mono-data text-mono-data text-primary">INV-2023-089</span>
+</div>
+<div class="flex justify-between md:justify-end gap-4">
+<span class="text-on-surface-variant font-semibold">Date:</span>
+<span class="font-mono-data text-mono-data text-primary">Oct 15, 2023</span>
+</div>
+<div class="flex justify-between md:justify-end gap-4">
+<span class="text-on-surface-variant font-semibold">Due Date:</span>
+<span class="font-mono-data text-mono-data text-primary">Oct 30, 2023</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Client Section -->
+<div class="mb-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+<div>
+<h4 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-3">Bill To</h4>
+<div class="font-body-sm text-body-sm text-primary">
+<p class="font-semibold text-lg">Acme Corporation</p>
+<p class="text-on-surface-variant mt-1">Jane Doe, Accounts Payable</p>
+<p class="text-on-surface-variant">456 Corporate Blvd, Building B</p>
+<p class="text-on-surface-variant">San Francisco, CA 94107</p>
+<p class="text-on-surface-variant">accounting@acmecorp.com</p>
+</div>
+</div>
+</div>
+<!-- Itemized Table -->
+<div class="overflow-x-auto mb-8">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b-2 border-outline-variant/30 text-on-surface-variant font-label-md text-label-md">
+<th class="py-3 px-4 w-1/2">Description</th>
+<th class="py-3 px-4 text-center w-1/6">Qty</th>
+<th class="py-3 px-4 text-right w-1/6">Rate</th>
+<th class="py-3 px-4 text-right w-1/6">Amount</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm">
+<tr class="border-b border-surface-container-high hover:bg-surface/50 transition-colors">
+<td class="py-4 px-4">
+<p class="font-semibold text-primary">Consulting Services</p>
+<p class="text-on-surface-variant text-xs mt-1">Q3 Financial strategy planning and review</p>
+</td>
+<td class="py-4 px-4 text-center font-mono-data text-mono-data">40</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data">$150.00</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data font-medium text-primary">$6,000.00</td>
+</tr>
+<tr class="border-b border-surface-container-high hover:bg-surface/50 transition-colors">
+<td class="py-4 px-4">
+<p class="font-semibold text-primary">Tax Preparation</p>
+<p class="text-on-surface-variant text-xs mt-1">Quarterly filing preparation and submission</p>
+</td>
+<td class="py-4 px-4 text-center font-mono-data text-mono-data">1</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data">$1,200.00</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data font-medium text-primary">$1,200.00</td>
+</tr>
+<tr class="border-b border-surface-container-high hover:bg-surface/50 transition-colors">
+<td class="py-4 px-4">
+<p class="font-semibold text-primary">Software License</p>
+<p class="text-on-surface-variant text-xs mt-1">Annual subscription renewal for Enterprise tier</p>
+</td>
+<td class="py-4 px-4 text-center font-mono-data text-mono-data">1</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data">$450.00</td>
+<td class="py-4 px-4 text-right font-mono-data text-mono-data font-medium text-primary">$450.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Totals Section -->
+<div class="flex flex-col md:flex-row justify-between items-end md:items-start gap-8">
+<!-- Notes / Terms -->
+<div class="w-full md:w-1/2 order-2 md:order-1">
+<h4 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">Payment Terms &amp; Notes</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant bg-surface p-4 rounded-lg border border-outline-variant/30">
+                            Payment is due within 15 days. Please include the invoice number on your check or bank transfer. Late payments may be subject to a 1.5% monthly fee. Thank you for your business!
+                        </p>
+</div>
+<!-- Calculation -->
+<div class="w-full md:w-1/3 order-1 md:order-2">
+<div class="flex justify-between py-2 border-b border-surface-container-high">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Subtotal</span>
+<span class="font-mono-data text-mono-data text-primary">$7,650.00</span>
+</div>
+<div class="flex justify-between py-2 border-b border-surface-container-high">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tax (8%)</span>
+<span class="font-mono-data text-mono-data text-primary">$612.00</span>
+</div>
+<div class="flex justify-between py-4 mt-2 bg-surface-container px-4 rounded-lg">
+<span class="font-headline-md text-headline-md font-bold text-primary">Total</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">$8,262.00</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Ribbon -->
+<div class="bg-surface-container-low py-4 px-6 md:px-12 border-t border-outline-variant/30 flex justify-between items-center text-on-surface-variant font-label-md text-label-md">
+<span>Powered by SmartFinance</span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-secondary">verified</span>
+                    Secure Invoice
+                </span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden bg-surface fixed bottom-0 w-full z-50 rounded-t-xl border-t border-outline-variant/30 shadow-lg flex justify-around items-center h-20 px-2 pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-transform duration-200 rounded-lg p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-90 transition-transform duration-200 min-w-[64px]" href="#">
+<span class="material-symbols-outlined" data-weight="fill">receipt_long</span>
+<span class="font-label-md text-label-md mt-1">Invoicing</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-transform duration-200 rounded-lg p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-md text-label-md mt-1">Expenses</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-transform duration-200 rounded-lg p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-label-md text-label-md mt-1">Reports</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-transform duration-200 rounded-lg p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="font-label-md text-label-md mt-1">Banking</span>
+</a>
+</nav>
+</body></html>
