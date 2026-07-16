@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
+import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +10,9 @@ import 'package:smart_finance/ui/widgets/page_header.dart';
 import 'package:smart_finance/ui/widgets/smart_button.dart';
 import 'package:smart_finance/ui/widgets/smart_text_field.dart';
 import 'package:smart_finance/providers/invoices_provider.dart';
+import 'package:smart_finance/providers/categories_provider.dart';
+import 'package:smart_finance/providers/transactions_provider.dart';
+import 'package:smart_finance/providers/pdf_export_provider.dart';
 
 class InvoicingScreen extends ConsumerWidget {
   const InvoicingScreen({super.key});
@@ -67,9 +72,11 @@ class InvoicingScreen extends ConsumerWidget {
                         BentoItem(
                           colSpan: listColSpan,
                           rowSpan: 4, // Allow table to have some height
-                          child: _InvoiceListCard(isDesktop: isDesktop || isTablet),
+                          child: _InvoiceListCard(
+                            isDesktop: isDesktop || isTablet,
+                          ),
                         ),
-                        
+
                         // Action for mobile
                         if (isMobile)
                           BentoItem(
@@ -122,7 +129,11 @@ class _OutstandingCard extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              Icon(Icons.trending_up_rounded, color: theme.colorScheme.secondary, size: 20),
+              Icon(
+                Icons.trending_up_rounded,
+                color: theme.colorScheme.secondary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 '+12% so với tháng trước',
@@ -217,7 +228,11 @@ class _CreateActionCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_circle_outline_rounded, size: 36, color: theme.colorScheme.onPrimary),
+            Icon(
+              Icons.add_circle_outline_rounded,
+              size: 36,
+              color: theme.colorScheme.onPrimary,
+            ),
             const SizedBox(height: 12),
             Text(
               'Tạo hóa đơn',
@@ -280,24 +295,40 @@ class _InvoiceListCard extends ConsumerWidget {
             child: invoicesState.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(
-                  child: Text('Lỗi tải hóa đơn: $err', style: TextStyle(color: theme.colorScheme.error))),
+                child: Text(
+                  'Lỗi tải hóa đơn: $err',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
               data: (invoices) {
                 if (invoices.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.receipt_long_rounded, size: 48, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          size: 48,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
                         const SizedBox(height: 16),
-                        Text('Chưa có hóa đơn nào.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
+                        Text(
+                          'Chưa có hóa đơn nào.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   );
                 }
 
-                final numberFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+                final numberFormat = NumberFormat.currency(
+                  locale: 'vi_VN',
+                  symbol: '₫',
+                );
                 final dateFormat = DateFormat('dd/MM/yyyy');
 
                 if (isDesktop) {
@@ -307,25 +338,60 @@ class _InvoiceListCard extends ConsumerWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 800),
                         child: DataTable(
-                          headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
+                          headingRowColor: WidgetStatePropertyAll(
+                            theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
+                          ),
                           dataRowMinHeight: 72,
                           dataRowMaxHeight: 72,
                           columns: const [
-                            DataColumn(label: Text('Mã HĐ', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Khách hàng', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Ngày', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Số tiền', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(
+                              label: Text(
+                                'Mã HĐ',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Khách hàng',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Ngày',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Số tiền',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Trạng thái',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
                             DataColumn(label: Text('')),
                           ],
                           rows: invoices.map((inv) {
                             return _buildDataRow(
-                              theme, 
-                              inv.invoiceNumber ?? inv.id.substring(0, 8), 
-                              inv.supplierName ?? 'Khách lẻ', 
-                              inv.invoiceDate != null ? dateFormat.format(inv.invoiceDate!) : '-', 
-                              numberFormat.format(inv.totalAmount ?? 0), 
-                              inv.scanStatus == 'processed' ? 'Hoàn tất' : 'Chờ xử lý',
+                              context,
+                              ref,
+                              theme,
+                              inv,
+                              inv.invoiceNumber ?? inv.id.substring(0, 8),
+                              inv.supplierName ?? 'Khách lẻ',
+                              inv.invoiceDate != null
+                                  ? dateFormat.format(inv.invoiceDate!)
+                                  : '-',
+                              numberFormat.format(inv.totalAmount ?? 0),
+                              inv.scanStatus == InvoiceScanStatus.scanned
+                                  ? 'Hoàn tất'
+                                  : 'Chờ xử lý',
                             );
                           }).toList(),
                         ),
@@ -340,12 +406,19 @@ class _InvoiceListCard extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final inv = invoices[index];
                       return _buildMobileInvoiceItem(
-                        theme, 
-                        inv.invoiceNumber ?? inv.id.substring(0, 8), 
-                        inv.supplierName ?? 'Khách lẻ', 
-                        inv.invoiceDate != null ? dateFormat.format(inv.invoiceDate!) : '-', 
-                        numberFormat.format(inv.totalAmount ?? 0), 
-                        inv.scanStatus == 'processed' ? 'Hoàn tất' : 'Chờ xử lý',
+                        context,
+                        ref,
+                        theme,
+                        inv,
+                        inv.invoiceNumber ?? inv.id.substring(0, 8),
+                        inv.supplierName ?? 'Khách lẻ',
+                        inv.invoiceDate != null
+                            ? dateFormat.format(inv.invoiceDate!)
+                            : '-',
+                        numberFormat.format(inv.totalAmount ?? 0),
+                        inv.scanStatus == InvoiceScanStatus.scanned
+                            ? 'Hoàn tất'
+                            : 'Chờ xử lý',
                       );
                     },
                   );
@@ -359,7 +432,10 @@ class _InvoiceListCard extends ConsumerWidget {
             child: Center(
               child: SmartButton.text(
                 onPressed: () {},
-                child: const Text('Xem tất cả hóa đơn', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Xem tất cả hóa đơn',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),
@@ -368,20 +444,71 @@ class _InvoiceListCard extends ConsumerWidget {
     );
   }
 
-  DataRow _buildDataRow(ThemeData theme, String id, String client, String date, String amount, String status) {
+  DataRow _buildDataRow(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    InvoiceModel invoice,
+    String id,
+    String client,
+    String date,
+    String amount,
+    String status,
+  ) {
     return DataRow(
       cells: [
-        DataCell(Text(id, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold))),
-        DataCell(Text(client, style: const TextStyle(fontWeight: FontWeight.w600))),
-        DataCell(Text(date, style: TextStyle(color: theme.colorScheme.onSurfaceVariant))),
-        DataCell(Text(amount, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold))),
+        DataCell(
+          Text(
+            id,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(client, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        DataCell(
+          Text(
+            date,
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+        DataCell(
+          Text(
+            amount,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         DataCell(_buildStatusBadge(theme, status)),
         DataCell(
           Align(
             alignment: Alignment.centerRight,
-            child: IconButton(
-              icon: const Icon(Icons.more_vert_rounded),
-              onPressed: () {},
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Xem trước',
+                  icon: const Icon(Icons.visibility_outlined),
+                  onPressed: () =>
+                      context.push('/invoicing/preview/${invoice.id}'),
+                ),
+                IconButton(
+                  tooltip: 'Xuất PDF',
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  onPressed: () => _exportInvoice(context, ref, invoice),
+                ),
+                IconButton(
+                  tooltip: 'Tạo chi phí',
+                  icon: const Icon(Icons.add_card_rounded),
+                  onPressed: () =>
+                      _createExpenseFromInvoice(context, ref, invoice),
+                ),
+              ],
             ),
           ),
         ),
@@ -389,9 +516,19 @@ class _InvoiceListCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildMobileInvoiceItem(ThemeData theme, String id, String client, String date, String amount, String status) {
+  Widget _buildMobileInvoiceItem(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    InvoiceModel invoice,
+    String id,
+    String client,
+    String date,
+    String amount,
+    String status,
+  ) {
     return InkWell(
-      onTap: () {},
+      onTap: () => context.push('/invoicing/preview/${invoice.id}'),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -400,7 +537,12 @@ class _InvoiceListCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(client, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  client,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 _buildStatusBadge(theme, status),
               ],
             ),
@@ -411,11 +553,44 @@ class _InvoiceListCard extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(id, style: theme.textTheme.labelMedium?.copyWith(fontFamily: 'Inter')),
-                    Text(date, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      id,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    Text(
+                      date,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
-                Text(amount, style: theme.textTheme.titleMedium?.copyWith(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      amount,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Xuất PDF',
+                      onPressed: () => _exportInvoice(context, ref, invoice),
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Tạo chi phí',
+                      onPressed: () =>
+                          _createExpenseFromInvoice(context, ref, invoice),
+                      icon: const Icon(Icons.add_card_rounded),
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -424,10 +599,108 @@ class _InvoiceListCard extends ConsumerWidget {
     );
   }
 
+  Future<void> _createExpenseFromInvoice(
+    BuildContext context,
+    WidgetRef ref,
+    InvoiceModel invoice,
+  ) async {
+    final categories = await ref.read(categoriesProvider.future);
+    final expenseCategories = categories
+        .where((category) => category.categoryType == TransactionType.expense)
+        .toList();
+
+    if (!context.mounted) return;
+    if (expenseCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có danh mục chi phí.')),
+      );
+      return;
+    }
+
+    var selectedCategoryId = expenseCategories.first.categoryId;
+    final categoryId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Tạo chi phí từ hóa đơn'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedCategoryId,
+            decoration: const InputDecoration(labelText: 'Danh mục chi phí'),
+            items: expenseCategories
+                .map(
+                  (category) => DropdownMenuItem(
+                    value: category.categoryId,
+                    child: Text(category.categoryName),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setDialogState(() => selectedCategoryId = value);
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(selectedCategoryId),
+              child: const Text('Tạo chi phí'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (categoryId == null) return;
+    try {
+      await ref
+          .read(transactionsProvider.notifier)
+          .createExpenseFromInvoice(invoice: invoice, categoryId: categoryId);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã tạo giao dịch chi phí.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Không thể tạo chi phí: $error')));
+    }
+  }
+
+  Future<void> _exportInvoice(
+    BuildContext context,
+    WidgetRef ref,
+    InvoiceModel invoice,
+  ) async {
+    try {
+      final result = await ref
+          .read(pdfExportProvider.notifier)
+          .exportInvoice(invoice);
+      if (!context.mounted || result == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã xuất PDF: ${result.filePath}')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Không thể xuất PDF: $error')));
+    }
+  }
+
   Widget _buildStatusBadge(ThemeData theme, String status) {
     final isDone = status == 'Hoàn tất';
-    final bgColor = isDone ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFFF59E0B).withValues(alpha: 0.1);
-    final textColor = isDone ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    final bgColor = isDone
+        ? const Color(0xFF10B981).withValues(alpha: 0.1)
+        : const Color(0xFFF59E0B).withValues(alpha: 0.1);
+    final textColor = isDone
+        ? const Color(0xFF10B981)
+        : const Color(0xFFF59E0B);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

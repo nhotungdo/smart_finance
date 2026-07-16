@@ -48,42 +48,65 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       ref.read(reportPeriodProvider.notifier).update(p),
                 ),
                 const SizedBox(height: 24),
-                reportState.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.error_outline,
-                            size: 48, color: theme.colorScheme.error),
-                        const SizedBox(height: 12),
-                        Text('Lỗi tải báo cáo: $err',
-                            style: TextStyle(color: theme.colorScheme.error)),
-                      ],
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.025),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
                     ),
                   ),
-                  data: (reportExt) {
-                    final barChart = _buildBarChartCard(theme, reportExt);
-                    final pieChart = _buildPieChartCard(theme, reportExt);
-                    final summaryTable = _buildSummaryTable(context, theme, isDesktop, reportExt);
+                  child: reportState.when(
+                    loading: () => SizedBox(
+                      key: ValueKey('loading-${selectedPeriod.name}'),
+                      height: 320,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (err, _) => Center(
+                      key: ValueKey('error-${selectedPeriod.name}'),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Lỗi tải báo cáo: $err',
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        ],
+                      ),
+                    ),
+                    data: (reportExt) {
+                      final barChart = _buildBarChartCard(theme, reportExt);
+                      final pieChart = _buildPieChartCard(theme, reportExt);
+                      final summaryTable = _buildSummaryTable(
+                        context,
+                        theme,
+                        isDesktop,
+                        reportExt,
+                      );
 
-                    return BentoGrid(
-                      children: [
-                        BentoItem(
-                          colSpan: 2,
-                          child: barChart,
+                      return KeyedSubtree(
+                        key: ValueKey('data-${reportExt.period.name}'),
+                        child: BentoGrid(
+                          children: [
+                            BentoItem(colSpan: 2, child: barChart),
+                            BentoItem(colSpan: 1, child: pieChart),
+                            BentoItem(colSpan: 3, child: summaryTable),
+                          ],
                         ),
-                        BentoItem(
-                          colSpan: 1,
-                          child: pieChart,
-                        ),
-                        BentoItem(
-                          colSpan: 3,
-                          child: summaryTable,
-                        ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -126,22 +149,28 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Lãi & Lỗ',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold)),
-              Row(children: [
-                _Dot(color: theme.colorScheme.primary, label: 'Thu'),
-                const SizedBox(width: 12),
-                _Dot(color: theme.colorScheme.error, label: 'Chi'),
-              ]),
+              Text(
+                'Lãi & Lỗ',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Row(
+                children: [
+                  _Dot(color: theme.colorScheme.primary, label: 'Thu'),
+                  const SizedBox(width: 12),
+                  _Dot(color: theme.colorScheme.error, label: 'Chi'),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             _rangeLabel(ext),
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -163,10 +192,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Phân tích chi phí',
-              style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            'Phân tích chi phí',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
@@ -191,13 +223,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.bar_chart,
-              size: 40,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+          Icon(
+            Icons.bar_chart,
+            size: 40,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
           const SizedBox(height: 8),
-          Text('Không có dữ liệu trong kỳ này',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            'Không có dữ liệu trong kỳ này',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -215,15 +252,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 10,
-                height: 10,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle)),
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 6),
             Text(
               '${e.categoryName} (${e.percentage.toStringAsFixed(0)}%)',
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         );
@@ -231,14 +269,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildSummaryTable(BuildContext context, ThemeData theme,
-      bool isDesktop, ReportDataExtended ext) {
+  Widget _buildSummaryTable(
+    BuildContext context,
+    ThemeData theme,
+    bool isDesktop,
+    ReportDataExtended ext,
+  ) {
     final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
     final cur = ext.current.summary;
     final prev = ext.previous;
 
-    String trend(double c, double p) => ext.trendLabel(c, p);
-    bool positive(double c, double p) => ext.isTrendPositive(c, p);
+    String trend(int c, int p) => ext.trendLabel(c, p);
+    bool positive(int c, int p) => ext.isTrendPositive(c, p);
 
     final rows = _isCashFlow
         ? [
@@ -278,8 +320,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               current: currency.format(cur.currentLiabilities),
               previous: currency.format(prev.currentLiabilities),
               trend: trend(cur.currentLiabilities, prev.currentLiabilities),
-              isPositive:
-                  !positive(cur.currentLiabilities, prev.currentLiabilities),
+              isPositive: !positive(
+                cur.currentLiabilities,
+                prev.currentLiabilities,
+              ),
             ),
             _SummaryRow(
               label: 'Vốn chủ sở hữu',
@@ -301,17 +345,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLowest,
               border: Border(
-                  bottom: BorderSide(
-                      color:
-                          theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+                bottom: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+              ),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Text(
               _isCashFlow ? 'Tóm tắt Dòng tiền' : 'Tóm tắt Cân đối kế toán',
               style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold),
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (isDesktop)
@@ -321,24 +370,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 constraints: const BoxConstraints(minWidth: 700),
                 child: DataTable(
                   headingRowColor: WidgetStatePropertyAll(
-                      theme.colorScheme.surfaceContainer),
+                    theme.colorScheme.surfaceContainer,
+                  ),
                   columns: const [
                     DataColumn(label: Text('DANH MỤC')),
                     DataColumn(label: Text('KỲ HIỆN TẠI'), numeric: true),
                     DataColumn(label: Text('KỲ TRƯỚC'), numeric: true),
                     DataColumn(label: Text('THAY ĐỔI'), numeric: true),
                   ],
-                  rows: rows
-                      .map((r) => _buildDataRow(theme, r))
-                      .toList(),
+                  rows: rows.map((r) => _buildDataRow(theme, r)).toList(),
                 ),
               ),
             )
           else
             Column(
-              children: rows
-                  .map((r) => _buildMobileRow(theme, r))
-                  .toList(),
+              children: rows.map((r) => _buildMobileRow(theme, r)).toList(),
             ),
         ],
       ),
@@ -349,37 +395,48 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final bold = r.isTotal;
     final base = bold
         ? theme.textTheme.titleSmall?.copyWith(
-            color: theme.colorScheme.primary, fontWeight: FontWeight.bold)
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          )
         : theme.textTheme.bodyMedium;
     return DataRow(
       color: bold
           ? WidgetStatePropertyAll(
-              theme.colorScheme.surface.withValues(alpha: 0.5))
+              theme.colorScheme.surface.withValues(alpha: 0.5),
+            )
           : null,
       cells: [
         DataCell(Text(r.label, style: base)),
         DataCell(Text(r.current, style: base)),
-        DataCell(Text(r.previous,
-            style: base?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant))),
-        DataCell(Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(
-              r.isPositive ? Icons.trending_up : Icons.trending_down,
-              size: 14,
-              color: r.isPositive
-                  ? Colors.green.shade600
-                  : theme.colorScheme.error,
-            ),
-            const SizedBox(width: 4),
-            Text(r.trend,
+        DataCell(
+          Text(
+            r.previous,
+            style: base?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                r.isPositive ? Icons.trending_up : Icons.trending_down,
+                size: 14,
+                color: r.isPositive
+                    ? Colors.green.shade600
+                    : theme.colorScheme.error,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                r.trend,
                 style: base?.copyWith(
-                    color: r.isPositive
-                        ? Colors.green.shade600
-                        : theme.colorScheme.error)),
-          ],
-        )),
+                  color: r.isPositive
+                      ? Colors.green.shade600
+                      : theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -396,25 +453,34 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.label,
-                        style: r.isTotal
-                            ? theme.textTheme.titleSmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold)
-                            : theme.textTheme.bodyMedium),
+                    Text(
+                      r.label,
+                      style: r.isTotal
+                          ? theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            )
+                          : theme.textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 4),
-                    Text('Kỳ trước: ${r.previous}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      'Kỳ trước: ${r.previous}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(r.current,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    r.current,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Row(
                     children: [
                       Icon(
@@ -425,12 +491,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             : theme.colorScheme.error,
                       ),
                       const SizedBox(width: 2),
-                      Text(r.trend,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                              color: r.isPositive
-                                  ? Colors.green.shade600
-                                  : theme.colorScheme.error,
-                              fontWeight: FontWeight.w600)),
+                      Text(
+                        r.trend,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: r.isPositive
+                              ? Colors.green.shade600
+                              : theme.colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -476,8 +545,7 @@ class _PeriodFilterBar extends StatelessWidget {
   final ReportPeriod selected;
   final ValueChanged<ReportPeriod> onChanged;
 
-  const _PeriodFilterBar(
-      {required this.selected, required this.onChanged});
+  const _PeriodFilterBar({required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -485,8 +553,7 @@ class _PeriodFilterBar extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: ReportPeriod.values
-            .map((period) {
+        children: ReportPeriod.values.map((period) {
           final isSelected = selected == period;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -497,7 +564,9 @@ class _PeriodFilterBar extends StatelessWidget {
                 onTap: () => onChanged(period),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? theme.colorScheme.primary
@@ -540,7 +609,7 @@ class _BarChartWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     double maxY = data.fold(0.0, (m, p) {
-      final v = p.value1 > p.value2 ? p.value1 : p.value2;
+      final v = (p.value1 > p.value2 ? p.value1 : p.value2).toDouble();
       return v > m ? v : m;
     });
     if (maxY == 0) maxY = 1000;
@@ -552,17 +621,16 @@ class _BarChartWidget extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) =>
-                theme.colorScheme.surfaceContainerHighest,
+            getTooltipColor: (_) => theme.colorScheme.surfaceContainerHighest,
             getTooltipItem: (group, gi, rod, ri) {
               final lbl = ri == 0 ? 'Thu' : 'Chi';
               final val = NumberFormat.compactCurrency(
-                      locale: 'vi_VN', symbol: '₫')
-                  .format(rod.toY);
+                locale: 'vi_VN',
+                symbol: '₫',
+              ).format(rod.toY);
               return BarTooltipItem(
                 '$lbl: $val',
-                TextStyle(
-                    color: theme.colorScheme.onSurface, fontSize: 11),
+                TextStyle(color: theme.colorScheme.onSurface, fontSize: 11),
               );
             },
           ),
@@ -578,11 +646,13 @@ class _BarChartWidget extends StatelessWidget {
                 }
                 return SideTitleWidget(
                   meta: meta,
-                  child: Text(data[i].label,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color:
-                              theme.colorScheme.onSurfaceVariant)),
+                  child: Text(
+                    data[i].label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 );
               },
             ),
@@ -597,27 +667,30 @@ class _BarChartWidget extends StatelessWidget {
                   meta: meta,
                   child: Text(
                     NumberFormat.compactCurrency(
-                            locale: 'vi_VN', symbol: '₫')
-                        .format(v),
+                      locale: 'vi_VN',
+                      symbol: '₫',
+                    ).format(v),
                     style: TextStyle(
-                        fontSize: 9,
-                        color: theme.colorScheme.onSurfaceVariant),
+                      fontSize: 9,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 );
               },
             ),
           ),
           topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
+            sideTitles: SideTitles(showTitles: false),
+          ),
           rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           getDrawingHorizontalLine: (v) => FlLine(
-            color:
-                theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
             strokeWidth: 1,
           ),
         ),
@@ -628,60 +701,136 @@ class _BarChartWidget extends StatelessWidget {
             barsSpace: 4,
             barRods: [
               BarChartRodData(
-                toY: e.value.value1,
+                toY: e.value.value1.toDouble(),
                 color: theme.colorScheme.primary,
                 width: 10,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(4)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
               ),
               BarChartRodData(
-                toY: e.value.value2,
+                toY: e.value.value2.toDouble(),
                 color: theme.colorScheme.error,
                 width: 10,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(4)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
               ),
             ],
           );
         }).toList(),
       ),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
     );
   }
 }
 
 // ─── Pie Chart Widget ─────────────────────────────────────────
-class _PieChartWidget extends StatelessWidget {
+class _PieChartWidget extends StatefulWidget {
   final List<ExpenseAnalysisModel> data;
   const _PieChartWidget({required this.data});
 
   @override
+  State<_PieChartWidget> createState() => _PieChartWidgetState();
+}
+
+class _PieChartWidgetState extends State<_PieChartWidget> {
+  int _touchedIndex = -1;
+
+  @override
   Widget build(BuildContext context) {
-    return PieChart(
-      PieChartData(
-        sectionsSpace: 2,
-        centerSpaceRadius: 36,
-        sections: data.map((e) {
-          Color color;
-          try {
-            color =
-                Color(int.parse(e.colorCode.replaceFirst('#', '0xff')));
-          } catch (_) {
-            color = Colors.grey;
-          }
-          return PieChartSectionData(
-            color: color,
-            value: e.percentage,
-            title: e.percentage > 6
-                ? '${e.percentage.toStringAsFixed(0)}%'
-                : '',
-            radius: 48,
-            titleStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
-          );
-        }).toList(),
-      ),
+    final theme = Theme.of(context);
+    final touched = _touchedIndex >= 0 && _touchedIndex < widget.data.length
+        ? widget.data[_touchedIndex]
+        : null;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        PieChart(
+          PieChartData(
+            sectionsSpace: 2,
+            centerSpaceRadius: 42,
+            pieTouchData: PieTouchData(
+              enabled: true,
+              mouseCursorResolver: (_, response) =>
+                  response?.touchedSection == null
+                  ? SystemMouseCursors.basic
+                  : SystemMouseCursors.click,
+              touchCallback: (event, response) {
+                final section = response?.touchedSection;
+                final nextIndex =
+                    !event.isInterestedForInteractions || section == null
+                    ? -1
+                    : section.touchedSectionIndex;
+                if (nextIndex != _touchedIndex) {
+                  setState(() => _touchedIndex = nextIndex);
+                }
+              },
+            ),
+            sections: widget.data.asMap().entries.map((entry) {
+              final e = entry.value;
+              Color color;
+              try {
+                color = Color(int.parse(e.colorCode.replaceFirst('#', '0xff')));
+              } catch (_) {
+                color = Colors.grey;
+              }
+              final isTouched = entry.key == _touchedIndex;
+              return PieChartSectionData(
+                color: color,
+                value: e.percentage,
+                title: e.percentage > 6
+                    ? '${e.percentage.toStringAsFixed(0)}%'
+                    : '',
+                radius: isTouched ? 56 : 48,
+                titleStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              );
+            }).toList(),
+          ),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        ),
+        IgnorePointer(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: SizedBox(
+              key: ValueKey(_touchedIndex),
+              width: 76,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    touched?.categoryName ?? 'Chi phí',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (touched != null)
+                    Text(
+                      NumberFormat.compactCurrency(
+                        locale: 'vi_VN',
+                        symbol: '₫',
+                      ).format(touched.amount),
+                      maxLines: 1,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -692,10 +841,11 @@ class _ToggleBtn extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _ToggleBtn(
-      {required this.title,
-      required this.isSelected,
-      required this.onTap});
+  const _ToggleBtn({
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -703,8 +853,7 @@ class _ToggleBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primaryContainer
@@ -717,8 +866,7 @@ class _ToggleBtn extends StatelessWidget {
             color: isSelected
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
-            fontWeight:
-                isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ),
@@ -734,15 +882,21 @@ class _Dot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(
+    return Row(
+      children: [
+        Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 4),
-      Text(label,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant)),
-    ]);
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -36,21 +36,16 @@ final appRouter = GoRouter(
     }
 
     // Nếu đã đăng nhập và đang vào trang login/register/splash → vào Dashboard
-    if (isLoggedIn && (path == '/login' || path == '/register' || path == '/')) {
+    if (isLoggedIn &&
+        (path == '/login' || path == '/register' || path == '/')) {
       return '/dashboard';
     }
 
     return null; // Không cần redirect
   },
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const SplashScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -82,8 +77,10 @@ final appRouter = GoRouter(
           builder: (context, state) => const CreateInvoiceScreen(),
         ),
         GoRoute(
-          path: '/invoicing/preview',
-          builder: (context, state) => const InvoicePreviewScreen(),
+          path: '/invoicing/preview/:invoiceId',
+          builder: (context, state) => InvoicePreviewScreen(
+            invoiceId: state.pathParameters['invoiceId']!,
+          ),
         ),
         GoRoute(
           path: '/invoicing/sent',

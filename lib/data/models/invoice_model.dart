@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:smart_finance/data/models/finance_enums.dart';
+
 class InvoiceModel {
   final String id;
   final String companyId;
@@ -8,12 +10,12 @@ class InvoiceModel {
   final String? supplierTaxCode;
   final String? invoiceNumber;
   final DateTime? invoiceDate;
-  final double? subtotal;
-  final double? vatRate;
-  final double? vatAmount;
-  final double? totalAmount;
+  final int? subtotal;
+  final int? vatRate;
+  final int? vatAmount;
+  final int? totalAmount;
   final String? imagePath;
-  final String scanStatus;
+  final InvoiceScanStatus scanStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
@@ -31,7 +33,7 @@ class InvoiceModel {
     this.vatAmount,
     this.totalAmount,
     this.imagePath,
-    this.scanStatus = 'pending',
+    this.scanStatus = InvoiceScanStatus.notScanned,
     required this.createdAt,
     required this.updatedAt,
     this.isSynced = false,
@@ -45,12 +47,12 @@ class InvoiceModel {
     String? supplierTaxCode,
     String? invoiceNumber,
     DateTime? invoiceDate,
-    double? subtotal,
-    double? vatRate,
-    double? vatAmount,
-    double? totalAmount,
+    int? subtotal,
+    int? vatRate,
+    int? vatAmount,
+    int? totalAmount,
     String? imagePath,
-    String? scanStatus,
+    InvoiceScanStatus? scanStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
@@ -89,7 +91,7 @@ class InvoiceModel {
       'vat_amount': vatAmount,
       'total_amount': totalAmount,
       'image_path': imagePath,
-      'scan_status': scanStatus,
+      'scan_status': scanStatus.databaseValue,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'is_synced': isSynced ? 1 : 0,
@@ -104,20 +106,27 @@ class InvoiceModel {
       supplierName: map['supplier_name'],
       supplierTaxCode: map['supplier_tax_code'],
       invoiceNumber: map['invoice_number'],
-      invoiceDate: map['invoice_date'] != null ? DateTime.parse(map['invoice_date']) : null,
-      subtotal: map['subtotal']?.toDouble(),
-      vatRate: map['vat_rate']?.toDouble(),
-      vatAmount: map['vat_amount']?.toDouble(),
-      totalAmount: map['total_amount']?.toDouble(),
+      invoiceDate: map['invoice_date'] != null
+          ? DateTime.parse(map['invoice_date'])
+          : null,
+      subtotal: (map['subtotal'] as num?)?.round(),
+      vatRate: (map['vat_rate'] as num?)?.round(),
+      vatAmount: (map['vat_amount'] as num?)?.round(),
+      totalAmount: (map['total_amount'] as num?)?.round(),
       imagePath: map['image_path'],
-      scanStatus: map['scan_status'] ?? 'pending',
-      createdAt: DateTime.parse(map['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(map['updated_at'] ?? DateTime.now().toIso8601String()),
+      scanStatus: InvoiceScanStatus.fromDatabase(map['scan_status']),
+      createdAt: DateTime.parse(
+        map['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        map['updated_at'] ?? DateTime.now().toIso8601String(),
+      ),
       isSynced: map['is_synced'] == 1,
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory InvoiceModel.fromJson(String source) => InvoiceModel.fromMap(json.decode(source));
+  factory InvoiceModel.fromJson(String source) =>
+      InvoiceModel.fromMap(json.decode(source));
 }

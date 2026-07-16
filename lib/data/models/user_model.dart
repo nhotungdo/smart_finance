@@ -1,3 +1,5 @@
+import 'package:smart_finance/data/models/finance_enums.dart';
+
 class UserModel {
   final String userId;
   final String? companyId;
@@ -6,7 +8,7 @@ class UserModel {
   final String email;
   final String? passwordHash;
   final String? phone;
-  final String status;
+  final RecordStatus status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isSynced;
@@ -19,7 +21,7 @@ class UserModel {
     required this.email,
     this.passwordHash,
     this.phone,
-    this.status = 'active',
+    this.status = RecordStatus.active,
     this.createdAt,
     this.updatedAt,
     this.isSynced = false,
@@ -34,7 +36,7 @@ class UserModel {
       'email': email,
       'password_hash': passwordHash,
       'phone': phone,
-      'status': status,
+      'status': status.databaseValue,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'is_synced': isSynced ? 1 : 0,
@@ -50,9 +52,13 @@ class UserModel {
       email: map['email'] as String,
       passwordHash: map['password_hash'] as String?,
       phone: map['phone'] as String?,
-      status: map['status'] as String? ?? 'active',
-      createdAt: map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : null,
+      status: RecordStatus.fromDatabase(map['status']),
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : null,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'] as String)
+          : null,
       isSynced: (map['is_synced'] as int?) == 1,
     );
   }

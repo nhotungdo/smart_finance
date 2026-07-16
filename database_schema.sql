@@ -25,7 +25,8 @@ CREATE TABLE public.users (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT,
     phone TEXT,
-    status TEXT DEFAULT 'active',
+    status TEXT NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'DELETED')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -35,11 +36,13 @@ CREATE TABLE public.categories (
     category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID REFERENCES public.companies(company_id),
     category_name TEXT NOT NULL,
-    category_type TEXT NOT NULL,
+    category_type TEXT NOT NULL
+        CHECK (category_type IN ('INCOME', 'EXPENSE')),
     icon_name TEXT,
     color_code TEXT,
     is_default BOOLEAN DEFAULT false,
-    status TEXT DEFAULT 'active',
+    status TEXT NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'DELETED')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -53,12 +56,13 @@ CREATE TABLE public.invoices (
     supplier_tax_code TEXT,
     invoice_number TEXT,
     invoice_date DATE,
-    subtotal DECIMAL(15,2),
-    vat_rate DECIMAL(5,2),
-    vat_amount DECIMAL(15,2),
-    total_amount DECIMAL(15,2),
+    subtotal INTEGER,
+    vat_rate INTEGER,
+    vat_amount INTEGER,
+    total_amount INTEGER,
     image_path TEXT,
-    scan_status TEXT DEFAULT 'pending',
+    scan_status TEXT NOT NULL DEFAULT 'NOT_SCANNED'
+        CHECK (scan_status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -70,12 +74,14 @@ CREATE TABLE public.transactions (
     category_id UUID REFERENCES public.categories(category_id),
     created_by UUID REFERENCES public.users(user_id),
     invoice_id UUID REFERENCES public.invoices(invoice_id),
-    amount DECIMAL(15,2) NOT NULL,
-    transaction_type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    transaction_type TEXT NOT NULL
+        CHECK (transaction_type IN ('INCOME', 'EXPENSE')),
     transaction_date DATE NOT NULL,
     description TEXT,
     receipt_image_path TEXT,
-    status TEXT DEFAULT 'completed',
+    status TEXT NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'DELETED')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,9 +92,10 @@ CREATE TABLE public.ocr_results (
     invoice_id UUID REFERENCES public.invoices(invoice_id) ON DELETE CASCADE,
     extracted_supplier_name TEXT,
     extracted_tax_code TEXT,
-    extracted_amount DECIMAL(15,2),
+    extracted_amount INTEGER,
     raw_mock_data JSONB,
-    status TEXT DEFAULT 'processed',
+    status TEXT NOT NULL DEFAULT 'SCANNED'
+        CHECK (status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR')),
     scanned_at TIMESTAMPTZ DEFAULT NOW()
 );
 

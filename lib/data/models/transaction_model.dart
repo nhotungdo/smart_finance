@@ -1,15 +1,17 @@
+import 'package:smart_finance/data/models/finance_enums.dart';
+
 class TransactionModel {
   final String transactionId;
   final String? companyId;
   final String? categoryId;
   final String? createdBy;
   final String? invoiceId;
-  final double amount;
-  final String transactionType; // 'income' or 'expense'
+  final int amount;
+  final TransactionType transactionType;
   final DateTime transactionDate;
   final String? description;
   final String? receiptImagePath;
-  final String status;
+  final RecordStatus status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isSynced;
@@ -25,7 +27,7 @@ class TransactionModel {
     required this.transactionDate,
     this.description,
     this.receiptImagePath,
-    this.status = 'completed',
+    this.status = RecordStatus.active,
     this.createdAt,
     this.updatedAt,
     this.isSynced = false,
@@ -39,11 +41,11 @@ class TransactionModel {
       'created_by': createdBy,
       'invoice_id': invoiceId,
       'amount': amount,
-      'transaction_type': transactionType,
+      'transaction_type': transactionType.databaseValue,
       'transaction_date': transactionDate.toIso8601String(),
       'description': description,
       'receipt_image_path': receiptImagePath,
-      'status': status,
+      'status': status.databaseValue,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'is_synced': isSynced ? 1 : 0,
@@ -57,14 +59,18 @@ class TransactionModel {
       categoryId: map['category_id'] as String?,
       createdBy: map['created_by'] as String?,
       invoiceId: map['invoice_id'] as String?,
-      amount: (map['amount'] as num).toDouble(),
-      transactionType: map['transaction_type'] as String,
+      amount: (map['amount'] as num).round(),
+      transactionType: TransactionType.fromDatabase(map['transaction_type']),
       transactionDate: DateTime.parse(map['transaction_date'] as String),
       description: map['description'] as String?,
       receiptImagePath: map['receipt_image_path'] as String?,
-      status: map['status'] as String? ?? 'completed',
-      createdAt: map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : null,
+      status: RecordStatus.fromDatabase(map['status']),
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : null,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'] as String)
+          : null,
       isSynced: (map['is_synced'] as int?) == 1,
     );
   }

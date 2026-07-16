@@ -1,5 +1,6 @@
 import 'package:smart_finance/data/database/local_database.dart';
 import 'package:smart_finance/data/models/category_model.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -9,18 +10,75 @@ class CategoryRepository {
 
   Future<void> seedDefaultCategories(String companyId) async {
     final db = await _db.database;
-    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM categories WHERE company_id = ? OR company_id IS NULL', [companyId])) ?? 0;
-    
+    final count =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM categories WHERE company_id = ? OR company_id IS NULL',
+            [companyId],
+          ),
+        ) ??
+        0;
+
     if (count == 0) {
       final now = DateTime.now();
       final defaultCategories = [
-        CategoryModel(categoryId: _uuid.v4(), companyId: companyId, categoryName: 'Ăn uống', categoryType: 'expense', iconName: 'restaurant', colorCode: '#F44336', isDefault: true, createdAt: now, updatedAt: now),
-        CategoryModel(categoryId: _uuid.v4(), companyId: companyId, categoryName: 'Du lịch', categoryType: 'expense', iconName: 'flight', colorCode: '#2196F3', isDefault: true, createdAt: now, updatedAt: now),
-        CategoryModel(categoryId: _uuid.v4(), companyId: companyId, categoryName: 'Văn phòng', categoryType: 'expense', iconName: 'computer', colorCode: '#4CAF50', isDefault: true, createdAt: now, updatedAt: now),
-        CategoryModel(categoryId: _uuid.v4(), companyId: companyId, categoryName: 'Xăng xe', categoryType: 'expense', iconName: 'local_gas_station', colorCode: '#FF9800', isDefault: true, createdAt: now, updatedAt: now),
-        CategoryModel(categoryId: _uuid.v4(), companyId: companyId, categoryName: 'Doanh thu bán hàng', categoryType: 'income', iconName: 'attach_money', colorCode: '#8BC34A', isDefault: true, createdAt: now, updatedAt: now),
+        CategoryModel(
+          categoryId: _uuid.v4(),
+          companyId: companyId,
+          categoryName: 'Ăn uống',
+          categoryType: TransactionType.expense,
+          iconName: 'restaurant',
+          colorCode: '#F44336',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        CategoryModel(
+          categoryId: _uuid.v4(),
+          companyId: companyId,
+          categoryName: 'Du lịch',
+          categoryType: TransactionType.expense,
+          iconName: 'flight',
+          colorCode: '#2196F3',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        CategoryModel(
+          categoryId: _uuid.v4(),
+          companyId: companyId,
+          categoryName: 'Văn phòng',
+          categoryType: TransactionType.expense,
+          iconName: 'computer',
+          colorCode: '#4CAF50',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        CategoryModel(
+          categoryId: _uuid.v4(),
+          companyId: companyId,
+          categoryName: 'Xăng xe',
+          categoryType: TransactionType.expense,
+          iconName: 'local_gas_station',
+          colorCode: '#FF9800',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        CategoryModel(
+          categoryId: _uuid.v4(),
+          companyId: companyId,
+          categoryName: 'Doanh thu bán hàng',
+          categoryType: TransactionType.income,
+          iconName: 'attach_money',
+          colorCode: '#8BC34A',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
       ];
-      
+
       final batch = db.batch();
       for (var cat in defaultCategories) {
         batch.insert('categories', cat.toMap());
@@ -46,13 +104,10 @@ class CategoryRepository {
   }
 
   // --- Sync Methods ---
-  
+
   Future<List<CategoryModel>> getUnsyncedCategories() async {
     final db = await _db.database;
-    final result = await db.query(
-      'categories',
-      where: 'is_synced = 0',
-    );
+    final result = await db.query('categories', where: 'is_synced = 0');
     return result.map((e) => CategoryModel.fromMap(e)).toList();
   }
 
@@ -70,7 +125,7 @@ class CategoryRepository {
 
   Future<void> upsertCategoryFromCloud(CategoryModel cloudCategory) async {
     final db = await _db.database;
-    
+
     // Conflict resolution
     final localMaps = await db.query(
       'categories',
@@ -78,12 +133,12 @@ class CategoryRepository {
       whereArgs: [cloudCategory.categoryId],
       limit: 1,
     );
-    
+
     if (localMaps.isNotEmpty) {
       final localCategory = CategoryModel.fromMap(localMaps.first);
-      if (!localCategory.isSynced && 
-          localCategory.updatedAt != null && 
-          cloudCategory.updatedAt != null && 
+      if (!localCategory.isSynced &&
+          localCategory.updatedAt != null &&
+          cloudCategory.updatedAt != null &&
           localCategory.updatedAt!.isAfter(cloudCategory.updatedAt!)) {
         return; // Bỏ qua, không ghi đè bản ghi local mới hơn
       }

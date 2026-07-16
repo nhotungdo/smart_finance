@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_finance/data/models/category_model.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/ui/screens/expenses/widgets/add_transaction_dialog.dart';
@@ -42,10 +44,26 @@ class ExpensesScreen extends ConsumerWidget {
                       spacing: 16,
                       children: [
                         BentoItem(colSpan: 2, rowSpan: 2, child: _BudgetCard()),
-                        BentoItem(colSpan: 1, rowSpan: 1, child: _ScanActionCard()),
-                        BentoItem(colSpan: 1, rowSpan: 1, child: _QuickAddCard()),
-                        BentoItem(colSpan: 2, rowSpan: 1, child: _CsvUploadCard()),
-                        BentoItem(colSpan: 2, rowSpan: 4, child: _ExpensesListCard(isDesktop: false)),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _ScanActionCard(),
+                        ),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _QuickAddCard(),
+                        ),
+                        BentoItem(
+                          colSpan: 2,
+                          rowSpan: 1,
+                          child: _CsvUploadCard(),
+                        ),
+                        BentoItem(
+                          colSpan: 2,
+                          rowSpan: 4,
+                          child: _ExpensesListCard(isDesktop: false),
+                        ),
                       ],
                     );
                   }
@@ -61,11 +79,23 @@ class ExpensesScreen extends ConsumerWidget {
                         // R0, C0 (Span 1x2) -> Budget
                         BentoItem(colSpan: 1, rowSpan: 2, child: _BudgetCard()),
                         // R0, C1 (Span 2x4) -> List
-                        BentoItem(colSpan: 2, rowSpan: 4, child: _ExpensesListCard(isDesktop: false)),
+                        BentoItem(
+                          colSpan: 2,
+                          rowSpan: 4,
+                          child: _ExpensesListCard(isDesktop: false),
+                        ),
                         // R2, C0 (Span 1x1) -> Scan
-                        BentoItem(colSpan: 1, rowSpan: 1, child: _ScanActionCard()),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _ScanActionCard(),
+                        ),
                         // R3, C0 (Span 1x1) -> Row of Manual & CSV
-                        BentoItem(colSpan: 1, rowSpan: 1, child: _QuickAddCard()),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _QuickAddCard(),
+                        ),
                       ],
                     );
                   }
@@ -80,11 +110,23 @@ class ExpensesScreen extends ConsumerWidget {
                       // R0, C0 (Span 1x2) -> Budget
                       BentoItem(colSpan: 1, rowSpan: 2, child: _BudgetCard()),
                       // R0, C1 (Span 2x4) -> List
-                      BentoItem(colSpan: 2, rowSpan: 4, child: _ExpensesListCard(isDesktop: true)),
+                      BentoItem(
+                        colSpan: 2,
+                        rowSpan: 4,
+                        child: _ExpensesListCard(isDesktop: true),
+                      ),
                       // R2, C0 (Span 1x1) -> Scan
-                      BentoItem(colSpan: 1, rowSpan: 1, child: _ScanActionCard()),
+                      BentoItem(
+                        colSpan: 1,
+                        rowSpan: 1,
+                        child: _ScanActionCard(),
+                      ),
                       // R3, C0 (Span 1x1) -> Row of Manual & CSV
-                      BentoItem(colSpan: 1, rowSpan: 1, child: _QuickActionsRowCard()),
+                      BentoItem(
+                        colSpan: 1,
+                        rowSpan: 1,
+                        child: _QuickActionsRowCard(),
+                      ),
                     ],
                   );
                 },
@@ -97,13 +139,68 @@ class ExpensesScreen extends ConsumerWidget {
   }
 }
 
+Future<void> _confirmDeleteTransaction(
+  BuildContext context,
+  WidgetRef ref,
+  String transactionId,
+) async {
+  final deleted = await _deleteTransactionAfterConfirmation(
+    context,
+    ref,
+    transactionId,
+  );
+  if (deleted && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã xóa giao dịch')));
+  }
+}
+
+Future<bool> _deleteTransactionAfterConfirmation(
+  BuildContext context,
+  WidgetRef ref,
+  String transactionId,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Xóa giao dịch?'),
+      content: const Text('Giao dịch sẽ được ẩn khỏi báo cáo và lịch sử.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Xóa'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) return false;
+  try {
+    await ref
+        .read(transactionsProvider.notifier)
+        .deleteTransaction(transactionId);
+    return true;
+  } catch (error) {
+    if (!context.mounted) return false;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Không thể xóa giao dịch: $error')));
+    return false;
+  }
+}
+
 // ─── Cards ───────────────────────────────────────────────────────────────────
 
 class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return BentoCard(
       showAccentStrip: true,
       accentColor: theme.colorScheme.primary,
@@ -147,7 +244,9 @@ class _BudgetCard extends StatelessWidget {
               value: 0.65,
               minHeight: 12,
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -195,7 +294,11 @@ class _ScanActionCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.document_scanner_rounded, size: 36, color: theme.colorScheme.onPrimary),
+            Icon(
+              Icons.document_scanner_rounded,
+              size: 36,
+              color: theme.colorScheme.onPrimary,
+            ),
             const SizedBox(height: 12),
             Text(
               'Quét biên lai',
@@ -227,7 +330,12 @@ class _QuickAddCard extends StatelessWidget {
           children: [
             Icon(Icons.add_rounded, size: 32, color: theme.colorScheme.primary),
             const SizedBox(height: 8),
-            Text('Nhập tay', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Nhập tay',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -246,9 +354,18 @@ class _CsvUploadCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.upload_file_rounded, size: 32, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.upload_file_rounded,
+              size: 32,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 8),
-            Text('Tải CSV', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Tải CSV',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -317,18 +434,27 @@ class _ExpensesListCard extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.receipt_long_rounded, size: 48, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          size: 48,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
                         const SizedBox(height: 16),
-                        Text('Chưa có giao dịch nào.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
+                        Text(
+                          'Chưa có giao dịch nào.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   );
                 }
 
                 final categories = categoriesState.value ?? [];
-                
+
                 if (isDesktop) {
                   return SingleChildScrollView(
                     child: SingleChildScrollView(
@@ -337,68 +463,170 @@ class _ExpensesListCard extends ConsumerWidget {
                         constraints: const BoxConstraints(minWidth: 600),
                         child: DataTable(
                           headingRowColor: WidgetStatePropertyAll(
-                              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
+                            theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
+                          ),
                           dataRowMaxHeight: 72,
                           dataRowMinHeight: 72,
                           columns: const [
-                            DataColumn(label: Text('Chi phí', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Ngày', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Số tiền', style: TextStyle(fontWeight: FontWeight.w600))),
-                            DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(
+                              label: Text(
+                                'Chi phí',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Danh mục',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Ngày',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Số tiền',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Hành động',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           ],
                           rows: transactions.map((tx) {
-                            final category = categories.firstWhere(
-                              (c) => c.categoryId == tx.categoryId,
-                              orElse: () => categories.isNotEmpty ? categories.first : categories.first,
-                            );
-                            
-                            final iconName = category.iconName ?? 'attach_money';
-                            IconData getIcon(String name) {
-                              switch(name) {
-                                case 'restaurant': return Icons.restaurant;
-                                case 'flight': return Icons.flight;
-                                case 'computer': return Icons.computer;
-                                case 'local_gas_station': return Icons.local_gas_station;
-                                default: return Icons.attach_money;
+                            CategoryModel? category;
+                            for (final item in categories) {
+                              if (item.categoryId == tx.categoryId) {
+                                category = item;
+                                break;
                               }
                             }
-                            
-                            final amountText = tx.transactionType == 'expense' 
-                                ? '-${currencyFmt.format(tx.amount)}' 
+
+                            final iconName =
+                                category?.iconName ?? 'attach_money';
+                            IconData getIcon(String name) {
+                              switch (name) {
+                                case 'restaurant':
+                                  return Icons.restaurant;
+                                case 'flight':
+                                  return Icons.flight;
+                                case 'computer':
+                                  return Icons.computer;
+                                case 'local_gas_station':
+                                  return Icons.local_gas_station;
+                                default:
+                                  return Icons.attach_money;
+                              }
+                            }
+
+                            final amountText =
+                                tx.transactionType == TransactionType.expense
+                                ? '-${currencyFmt.format(tx.amount)}'
                                 : '+${currencyFmt.format(tx.amount)}';
-                                
-                            final amountColor = tx.transactionType == 'expense' 
+
+                            final amountColor =
+                                tx.transactionType == TransactionType.expense
                                 ? theme.colorScheme.error
                                 : const Color(0xFF10B981);
 
-                            return DataRow(cells: [
-                              DataCell(Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5), shape: BoxShape.circle),
-                                    child: Icon(getIcon(iconName), color: theme.colorScheme.primary, size: 20),
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: theme
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withValues(alpha: 0.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          getIcon(iconName),
+                                          color: theme.colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              tx.description?.isNotEmpty == true
+                                                  ? tx.description!
+                                                  : 'Giao dịch',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            Text(
+                                              category?.categoryName ??
+                                                  'Chưa phân loại',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(tx.description?.isNotEmpty == true ? tx.description! : 'Giao dịch', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        Text(category.categoryName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                                      ],
+                                ),
+                                DataCell(
+                                  Text(
+                                    category?.categoryName ?? 'Chưa phân loại',
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    DateFormat(
+                                      'dd/MM/yyyy',
+                                    ).format(tx.transactionDate),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    amountText,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Inter',
+                                      color: amountColor,
                                     ),
                                   ),
-                                ],
-                              )),
-                              DataCell(Text(category.categoryName)),
-                              DataCell(Text(DateFormat('dd/MM/yyyy').format(tx.transactionDate))),
-                              DataCell(Text(amountText, style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', color: amountColor))),
-                              DataCell(IconButton(icon: const Icon(Icons.more_vert, size: 20), onPressed: () {})),
-                            ]);
+                                ),
+                                DataCell(
+                                  IconButton(
+                                    tooltip: 'Xóa giao dịch',
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _confirmDeleteTransaction(
+                                      context,
+                                      ref,
+                                      tx.transactionId,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
                           }).toList(),
                         ),
                       ),
@@ -411,77 +639,148 @@ class _ExpensesListCard extends ConsumerWidget {
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final tx = transactions[index];
-                      final category = categories.firstWhere(
-                        (c) => c.categoryId == tx.categoryId,
-                        orElse: () => categories.isNotEmpty ? categories.first : categories.first,
-                      );
-                      
-                      final iconName = category.iconName ?? 'attach_money';
-                      IconData getIcon(String name) {
-                        switch(name) {
-                          case 'restaurant': return Icons.restaurant;
-                          case 'flight': return Icons.flight;
-                          case 'computer': return Icons.computer;
-                          case 'local_gas_station': return Icons.local_gas_station;
-                          default: return Icons.attach_money;
+                      CategoryModel? category;
+                      for (final item in categories) {
+                        if (item.categoryId == tx.categoryId) {
+                          category = item;
+                          break;
                         }
                       }
 
-                      final amountText = tx.transactionType == 'expense' 
-                          ? '-${currencyFmt.format(tx.amount)}' 
+                      final iconName = category?.iconName ?? 'attach_money';
+                      IconData getIcon(String name) {
+                        switch (name) {
+                          case 'restaurant':
+                            return Icons.restaurant;
+                          case 'flight':
+                            return Icons.flight;
+                          case 'computer':
+                            return Icons.computer;
+                          case 'local_gas_station':
+                            return Icons.local_gas_station;
+                          default:
+                            return Icons.attach_money;
+                        }
+                      }
+
+                      final amountText =
+                          tx.transactionType == TransactionType.expense
+                          ? '-${currencyFmt.format(tx.amount)}'
                           : '+${currencyFmt.format(tx.amount)}';
-                      final amountColor = tx.transactionType == 'expense' 
+                      final amountColor =
+                          tx.transactionType == TransactionType.expense
                           ? theme.colorScheme.error
                           : const Color(0xFF10B981);
 
-                      return InkWell(
-                        onTap: () {},
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(getIcon(iconName), color: theme.colorScheme.primary, size: 20),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                      return Dismissible(
+                        key: ValueKey(tx.transactionId),
+                        direction: DismissDirection.endToStart,
+                        movementDuration: const Duration(milliseconds: 250),
+                        resizeDuration: const Duration(milliseconds: 220),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          color: theme.colorScheme.errorContainer,
+                          child: Icon(
+                            Icons.delete_outline_rounded,
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
+                        ),
+                        confirmDismiss: (_) async {
+                          final deleted =
+                              await _deleteTransactionAfterConfirmation(
+                                context,
+                                ref,
+                                tx.transactionId,
+                              );
+                          if (deleted && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã xóa giao dịch')),
+                            );
+                          }
+                          return deleted;
+                        },
+                        child: InkWell(
+                          onTap: () {},
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        tx.description?.isNotEmpty == true ? tx.description! : 'Giao dịch',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: theme
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withValues(alpha: 0.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          getIcon(iconName),
+                                          color: theme.colorScheme.primary,
+                                          size: 20,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${category.categoryName} • ${DateFormat('dd/MM').format(tx.transactionDate)}',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              tx.description?.isNotEmpty == true
+                                                  ? tx.description!
+                                                  : 'Giao dịch',
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${category?.categoryName ?? 'Chưa phân loại'} • ${DateFormat('dd/MM').format(tx.transactionDate)}',
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                              Text(
-                                amountText,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: amountColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Inter',
                                 ),
-                              ),
-                            ],
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      amountText,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: amountColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontFamily: 'Inter',
+                                          ),
+                                    ),
+                                    if (tx.receiptImagePath != null) ...[
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.receipt_long_outlined,
+                                        size: 18,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -499,7 +798,10 @@ class _ExpensesListCard extends ConsumerWidget {
             child: Center(
               child: SmartButton.text(
                 onPressed: () {},
-                child: const Text('Xem tất cả chi phí', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Xem tất cả chi phí',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),

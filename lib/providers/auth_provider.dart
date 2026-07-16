@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_finance/data/models/user_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/repositories/auth_repository.dart';
 
@@ -19,6 +20,11 @@ final currentUserProvider = Provider<User?>((ref) {
   return ref.watch(authRepositoryProvider).currentUser;
 });
 
+final currentUserProfileProvider = FutureProvider<UserModel?>((ref) async {
+  ref.watch(authStateProvider);
+  return ref.watch(authRepositoryProvider).getCurrentProfile();
+});
+
 // Notifier to handle auth operations with loading state
 class AuthNotifier extends AsyncNotifier<void> {
   @override
@@ -31,25 +37,30 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
       await repo.signInWithEmailPassword(email, password);
+      ref.invalidate(currentUserProfileProvider);
     });
   }
 
-  Future<void> signUp({
+  Future<bool> signUp({
     required String email,
     required String password,
     required String fullName,
     required String businessName,
   }) async {
+    var requiresEmailConfirmation = false;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
-      await repo.signUpWithEmailPassword(
+      final response = await repo.signUpWithEmailPassword(
         email: email,
         password: password,
         fullName: fullName,
         businessName: businessName,
       );
+      requiresEmailConfirmation = response.session == null;
+      ref.invalidate(currentUserProfileProvider);
     });
+    return requiresEmailConfirmation;
   }
 
   Future<void> resetPassword(String email) async {
@@ -65,6 +76,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
       await repo.signOut();
+      ref.invalidate(currentUserProfileProvider);
     });
   }
 }

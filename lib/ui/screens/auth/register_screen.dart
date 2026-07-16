@@ -37,11 +37,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Vui lòng đồng ý với Điều khoản sử dụng')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đồng ý với Điều khoản sử dụng')),
+      );
       return;
     }
-    await ref.read(authNotifierProvider.notifier).signUp(
+    final requiresEmailConfirmation = await ref
+        .read(authNotifierProvider.notifier)
+        .signUp(
           email: _emailCtrl.text.trim(),
           password: _passCtrl.text,
           fullName: _nameCtrl.text.trim(),
@@ -50,10 +53,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!mounted) return;
     final state = ref.read(authNotifierProvider);
     if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Lỗi: ${state.error}'),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${state.error}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } else if (requiresEmailConfirmation) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Đăng ký thành công. Hãy xác nhận email rồi đăng nhập.',
+          ),
+        ),
+      );
+      context.go('/login');
     } else {
       context.go('/dashboard');
     }
@@ -107,26 +121,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.auto_graph,
-                                    color: Colors.white, size: 22),
+                                child: const Icon(
+                                  Icons.auto_graph,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
                               ),
                               const SizedBox(width: 10),
-                              Text('SmartFinance',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w800,
-                                  )),
+                              Text(
+                                'SmartFinance',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 20),
-                          Text('Tạo tài khoản mới',
-                              style: theme.textTheme.headlineMedium
-                                  ?.copyWith(fontWeight: FontWeight.w800)),
+                          Text(
+                            'Tạo tài khoản mới',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text('Bắt đầu quản lý tài chính thông minh',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                  color:
-                                      theme.colorScheme.onSurfaceVariant)),
+                          Text(
+                            'Bắt đầu quản lý tài chính thông minh',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -149,8 +173,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             hintText: 'Nguyễn Văn A',
                             labelText: 'Họ và tên',
                             prefixIcon: Icons.person_outline,
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Vui lòng nhập họ tên' : null,
+                            validator: (v) => v == null || v.isEmpty
+                                ? 'Vui lòng nhập họ tên'
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           SmartTextField(
@@ -197,11 +222,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             labelText: 'Mật khẩu',
                             prefixIcon: Icons.lock_outline,
                             suffixIcon: IconButton(
-                              icon: Icon(_obscurePass
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
-                              onPressed: () => setState(
-                                  () => _obscurePass = !_obscurePass),
+                              icon: Icon(
+                                _obscurePass
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscurePass = !_obscurePass),
                             ),
                             validator: (v) => v == null || v.length < 6
                                 ? 'Mật khẩu ít nhất 6 ký tự'
@@ -215,11 +242,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             labelText: 'Xác nhận mật khẩu',
                             prefixIcon: Icons.lock_outline,
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirm
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () => setState(
-                                  () => _obscureConfirm = !_obscureConfirm),
+                                () => _obscureConfirm = !_obscureConfirm,
+                              ),
                             ),
                             validator: (v) => v != _passCtrl.text
                                 ? 'Mật khẩu không khớp'
@@ -242,25 +272,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     setState(() => _agreed = v ?? false),
                                 activeColor: theme.colorScheme.primary,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(4)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                               ),
                               Expanded(
                                 child: Wrap(
                                   children: [
-                                    Text('Tôi đồng ý với ',
-                                        style: theme.textTheme.bodySmall),
-                                    Text('Điều khoản sử dụng',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                color: theme.colorScheme.primary,
-                                                fontWeight: FontWeight.w600)),
-                                    Text(' và ',
-                                        style: theme.textTheme.bodySmall),
-                                    Text('Chính sách bảo mật',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                color: theme.colorScheme.primary,
-                                                fontWeight: FontWeight.w600)),
+                                    Text(
+                                      'Tôi đồng ý với ',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      'Điều khoản sử dụng',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    Text(
+                                      ' và ',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      'Chính sách bảo mật',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -273,10 +314,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               onPressed: _submit,
                               isLoading: isLoading,
                               padding: const EdgeInsets.symmetric(vertical: 18),
-                              child: const Text('Tạo tài khoản',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700)),
+                              child: const Text(
+                                'Tạo tài khoản',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -288,14 +332,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Đã có tài khoản? ',
-                              style: Theme.of(context).textTheme.bodyMedium),
+                          Text(
+                            'Đã có tài khoản? ',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                           SmartButton.text(
                             onPressed: () => context.go('/login'),
-                            child: Text('Đăng nhập',
-                                style: TextStyle(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w700)),
+                            child: Text(
+                              'Đăng nhập',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ],
                       ),
