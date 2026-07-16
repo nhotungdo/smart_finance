@@ -23,8 +23,8 @@ class BentoCard extends StatefulWidget {
     required this.child,
     this.accentColor,
     this.gradient,
-    this.padding = const EdgeInsets.all(20),
-    this.borderRadius = 24,
+    this.padding = const EdgeInsets.all(24),
+    this.borderRadius = 28,
     this.onTap,
     this.showAccentStrip = false,
     this.style = BentoCardStyle.solid,
@@ -45,10 +45,10 @@ class _BentoCardState extends State<BentoCard>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 250),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.985).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.98).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
   }
 
@@ -73,8 +73,8 @@ class _BentoCardState extends State<BentoCard>
         : const Color(0xFFE2E8F0);
 
     final shadowColor = isDark
-        ? Colors.black.withValues(alpha: 0.35)
-        : Colors.black.withValues(alpha: 0.06);
+        ? Colors.black.withValues(alpha: 0.15)
+        : Colors.black.withValues(alpha: 0.03);
 
     Widget content = SizedBox(
       height: widget.height,
@@ -95,13 +95,13 @@ class _BentoCardState extends State<BentoCard>
               : [
                   BoxShadow(
                     color: shadowColor,
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+                    blurRadius: 32,
+                    offset: const Offset(0, 8),
                   ),
                   if (widget.accentColor != null)
                     BoxShadow(
                       color: widget.accentColor!.withValues(alpha: 0.08),
-                      blurRadius: 24,
+                      blurRadius: 32,
                       spreadRadius: -4,
                     ),
                 ],

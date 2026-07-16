@@ -13,8 +13,8 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.borderRadius = 24.0,
+    this.padding = const EdgeInsets.all(24),
+    this.borderRadius = 28.0,
     this.onTap,
     this.accentColor,
     this.enableBlur = true,
@@ -30,12 +30,12 @@ class GlassCard extends StatelessWidget {
         : Colors.white.withValues(alpha: 0.75);
 
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : const Color(0xFFE2E8F0).withValues(alpha: 0.6);
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.4);
 
     final shadowColor = isDark
-        ? Colors.black.withValues(alpha: 0.25)
-        : Colors.black.withValues(alpha: 0.04);
+        ? Colors.black.withValues(alpha: 0.15)
+        : Colors.black.withValues(alpha: 0.03);
 
     Widget inner = Container(
       padding: padding,
@@ -46,8 +46,8 @@ class GlassCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: shadowColor,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            blurRadius: 32,
+            offset: const Offset(0, 8),
           ),
           if (accentColor != null)
             BoxShadow(
@@ -64,7 +64,7 @@ class GlassCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(borderRadius),
       child: enableBlur
           ? BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
               child: inner,
             )
           : inner,
