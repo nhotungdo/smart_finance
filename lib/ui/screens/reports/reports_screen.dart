@@ -120,6 +120,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildBarChartCard(ThemeData theme, ReportDataExtended ext) {
     return BentoCard(
+      showAccentStrip: true,
+      accentColor: theme.colorScheme.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -160,6 +162,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildPieChartCard(ThemeData theme, ReportDataExtended ext) {
     return BentoCard(
+      showAccentStrip: true,
+      accentColor: const Color(0xFF10B981),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

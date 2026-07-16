@@ -42,7 +42,8 @@ class DashboardScreen extends ConsumerWidget {
                           )
                         : Container(
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: IconButton(
@@ -61,12 +62,15 @@ class DashboardScreen extends ConsumerWidget {
                                       content: Text(
                                         finalState.error != null
                                             ? 'Lỗi đồng bộ: ${finalState.error}'
-                                            : 'Đồng bộ thành công!',
+                                            : '✅ Đồng bộ thành công!',
                                       ),
                                       backgroundColor: finalState.error != null
                                           ? theme.colorScheme.error
                                           : const Color(0xFF10B981),
                                       behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
                                   );
                                 }
@@ -128,6 +132,7 @@ class DashboardScreen extends ConsumerWidget {
                   );
                 },
               ),
+              const SizedBox(height: 48),
             ],
           ),
         ),
@@ -137,15 +142,20 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 // ─── Stat Tiles ──────────────────────────────────────────────────────────────
+
 class _StatThuTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(financialSummaryProvider);
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+    final currencyFmt =
+        NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
     return summaryAsync.when(
-      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      loading: () => const BentoCard(
+          padding: EdgeInsets.all(20),
+          child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => const BentoCard(
+          padding: EdgeInsets.all(20), child: Center(child: Text('Lỗi'))),
       data: (summary) => BentoCard(
         showAccentStrip: true,
         accentColor: const Color(0xFF10B981),
@@ -167,11 +177,15 @@ class _StatChiTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final summaryAsync = ref.watch(financialSummaryProvider);
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+    final currencyFmt =
+        NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
     return summaryAsync.when(
-      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      loading: () => const BentoCard(
+          padding: EdgeInsets.all(20),
+          child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => const BentoCard(
+          padding: EdgeInsets.all(20), child: Center(child: Text('Lỗi'))),
       data: (summary) => BentoCard(
         showAccentStrip: true,
         accentColor: theme.colorScheme.error,
@@ -193,14 +207,19 @@ class _StatDongTienTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final summaryAsync = ref.watch(financialSummaryProvider);
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+    final currencyFmt =
+        NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
     return summaryAsync.when(
-      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      loading: () => const BentoCard(
+          padding: EdgeInsets.all(20),
+          child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => const BentoCard(
+          padding: EdgeInsets.all(20), child: Center(child: Text('Lỗi'))),
       data: (summary) {
         final isPositive = summary.cashFlow >= 0;
-        final color = isPositive ? theme.colorScheme.primary : const Color(0xFFF59E0B);
+        final color =
+            isPositive ? theme.colorScheme.primary : const Color(0xFFF59E0B);
         return BentoCard(
           showAccentStrip: true,
           accentColor: color,
@@ -214,7 +233,9 @@ class _StatDongTienTile extends ConsumerWidget {
           ),
           padding: const EdgeInsets.all(20),
           child: BentoIconTile(
-            icon: isPositive ? Icons.account_balance_wallet_rounded : Icons.warning_amber_rounded,
+            icon: isPositive
+                ? Icons.account_balance_wallet_rounded
+                : Icons.warning_amber_rounded,
             label: 'Dòng tiền',
             value: currencyFmt.format(summary.cashFlow),
             accentColor: color,
@@ -227,6 +248,7 @@ class _StatDongTienTile extends ConsumerWidget {
 }
 
 // ─── Chart Tile ──────────────────────────────────────────────────────────────
+
 class _CashFlowChartTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -317,12 +339,13 @@ class _CashFlowChartTile extends ConsumerWidget {
                             }
                             return SideTitleWidget(
                               meta: meta,
+                              space: 8,
                               child: Text(
                                 points[idx].label,
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   color: theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             );
@@ -356,16 +379,28 @@ class _CashFlowChartTile extends ConsumerWidget {
                           BarChartRodData(
                             toY: p.income,
                             color: const Color(0xFF10B981),
-                            width: 12,
+                            width: 14,
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(6)),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              show: true,
+                              toY: maxY,
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                            ),
                           ),
                           BarChartRodData(
                             toY: p.expense,
                             color: theme.colorScheme.error,
-                            width: 12,
+                            width: 14,
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(6)),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              show: true,
+                              toY: maxY,
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                            ),
                           ),
                         ],
                       );
@@ -406,15 +441,17 @@ class _LegendDot extends StatelessWidget {
 }
 
 // ─── Recent Transactions Tile ────────────────────────────────────────────────
+
 class _RecentTransactionsTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final recentAsync = ref.watch(recentTransactionsProvider);
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+    final currencyFmt =
+        NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
     return BentoCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -425,30 +462,30 @@ class _RecentTransactionsTile extends ConsumerWidget {
               borderRadius: BorderRadius.circular(20),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text('Tất cả',
+                child: Text('Xem tất cả',
                     style: TextStyle(
                         color: theme.colorScheme.primary,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold)),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: recentAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Lỗi')),
+              error: (e, _) => const Center(child: Text('Lỗi')),
               data: (txList) {
                 if (txList.isEmpty) {
                   return Center(
-                    child: Text('Chưa có GD',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                    child: Text('Chưa có giao dịch',
+                        style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant)),
                   );
                 }
                 return ListView.separated(
                   itemCount: txList.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final tx = txList[index];
                     final isIncome = tx.transactionType == 'income';
@@ -459,18 +496,18 @@ class _RecentTransactionsTile extends ConsumerWidget {
                     return Row(
                       children: [
                         Container(
-                          width: 36,
-                          height: 36,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             isIncome
                                 ? Icons.arrow_downward_rounded
                                 : Icons.arrow_upward_rounded,
                             color: color,
-                            size: 18,
+                            size: 20,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -483,10 +520,11 @@ class _RecentTransactionsTile extends ConsumerWidget {
                                     ? tx.description!
                                     : (isIncome ? 'Thu nhập' : 'Chi tiêu'),
                                 style: theme.textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.w600),
+                                    fontWeight: FontWeight.w600, fontSize: 14),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              const SizedBox(height: 2),
                               Text(
                                 DateFormat('dd/MM HH:mm')
                                     .format(tx.transactionDate),
@@ -498,9 +536,9 @@ class _RecentTransactionsTile extends ConsumerWidget {
                         ),
                         Text(
                           '${isIncome ? '+' : '-'}${currencyFmt.format(tx.amount)}',
-                          style: theme.textTheme.labelLarge?.copyWith(
+                          style: theme.textTheme.titleMedium?.copyWith(
                             color: color,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -517,12 +555,14 @@ class _RecentTransactionsTile extends ConsumerWidget {
 }
 
 // ─── Grouped Transactions Tile ───────────────────────────────────────────────
+
 class _GroupedTransactionsTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final groupedAsync = ref.watch(groupedTransactionsProvider);
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+    final currencyFmt =
+        NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
     return BentoCard(
       padding: const EdgeInsets.all(24),
@@ -535,11 +575,11 @@ class _GroupedTransactionsTile extends ConsumerWidget {
             action: Icon(Icons.calendar_month_rounded,
                 color: theme.colorScheme.primary),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Expanded(
             child: groupedAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Lỗi')),
+              error: (e, _) => const Center(child: Text('Lỗi')),
               data: (groups) {
                 if (groups.isEmpty) {
                   return Center(
@@ -567,52 +607,65 @@ class _GroupedTransactionsTile extends ConsumerWidget {
                           children: [
                             Text(
                               group.dateLabel,
-                              style: theme.textTheme.labelMedium?.copyWith(
+                              style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,
                               ),
                             ),
-                            Text(
-                              '${dayTotal >= 0 ? '+' : ''}${currencyFmt.format(dayTotal)}',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
                                 color: dayTotal >= 0
                                     ? const Color(0xFF10B981)
-                                    : theme.colorScheme.error,
+                                        .withValues(alpha: 0.1)
+                                    : theme.colorScheme.error
+                                        .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${dayTotal >= 0 ? '+' : ''}${currencyFmt.format(dayTotal)}',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: dayTotal >= 0
+                                      ? const Color(0xFF10B981)
+                                      : theme.colorScheme.error,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         ...group.transactions.map((tx) {
                           final isIncome = tx.transactionType == 'income';
                           final color = isIncome
                               ? const Color(0xFF10B981)
                               : theme.colorScheme.error;
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.only(bottom: 16),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 8,
-                                  height: 8,
+                                  width: 10,
+                                  height: 10,
                                   decoration: BoxDecoration(
                                       color: color, shape: BoxShape.circle),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
                                     tx.description?.isNotEmpty == true
                                         ? tx.description!
                                         : (isIncome ? 'Thu nhập' : 'Chi tiêu'),
-                                    style: theme.textTheme.bodyMedium,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w500),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 Text(
                                   '${isIncome ? '+' : '-'}${currencyFmt.format(tx.amount)}',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                  style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
