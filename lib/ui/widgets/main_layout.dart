@@ -34,6 +34,7 @@ class MainLayout extends ConsumerWidget {
     if (path.startsWith('/invoicing')) return 1;
     if (path.startsWith('/expenses')) return 2;
     if (path.startsWith('/reports')) return 3;
+    if (path.startsWith('/settings')) return 4;
     return 0;
   }
 }
@@ -154,6 +155,13 @@ class _DesktopLayout extends ConsumerWidget {
                       children: [
                         const Divider(),
                         const SizedBox(height: 8),
+                        _SidebarNavItem(
+                          icon: Icons.settings_rounded,
+                          label: 'Cài đặt',
+                          isActive: currentIndex == 4,
+                          onTap: () => context.go('/settings'),
+                        ),
+                        const SizedBox(height: 4),
                         _SidebarNavItem(
                           icon: theme.brightness == Brightness.dark
                               ? Icons.light_mode_rounded
@@ -358,6 +366,12 @@ class _MobileLayout extends ConsumerWidget {
                   label: 'Báo cáo',
                   isActive: currentIndex == 3,
                   onTap: () => context.go('/reports'),
+                ),
+                _BottomNavItem(
+                  icon: Icons.settings_rounded,
+                  label: 'Cài đặt',
+                  isActive: currentIndex == 4,
+                  onTap: () => context.go('/settings'),
                 ),
               ],
             ),

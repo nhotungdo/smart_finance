@@ -74,7 +74,6 @@ class AuthRepository {
     return response;
   }
 
-  // Register with Email/Password and create Company & User Profile
   Future<AuthResponse> signUpWithEmailPassword({
     required String email,
     required String password,
@@ -90,97 +89,50 @@ class AuthRepository {
     );
 
     if (existingUser.isNotEmpty) {
-      throw const AuthException('Tài khoản email đã tồn tại trong hệ thống. Vui lòng đăng nhập.');
+      throw const AuthException('Tài khoản email đã tồn tại trong hệ thống cục bộ. Vui lòng đăng nhập.');
     }
 
-    AuthResponse? authResponse;
-    User? user;
-    bool isOfflineMode = false;
+    // 1. SignUp with Supabase Auth
+    final authResponse = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+      data: {
+        'full_name': fullName,
+        'business_name': businessName,
+      },
+    );
 
-    try {
-      // 1. SignUp with Supabase Auth
-      authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-        data: {
-          'full_name': fullName,
-          'business_name': businessName,
-        },
-      );
-      user = authResponse.user;
-    } on AuthException catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('rate limit') || msg.contains('nhiều lần') || msg.contains('too many requests')) {
-        debugPrint('Supabase Auth rate limit: $e. Forcing local offline account creation.');
-        isOfflineMode = true;
-      } else if (msg.contains('already registered') || msg.contains('tồn tại') || msg.contains('user already exists')) {
-        throw const AuthException('Tài khoản email đã tồn tại trên máy chủ. Vui lòng đăng nhập.');
-      } else {
-        debugPrint('Supabase Auth Exception: $e. Forcing local offline account creation.');
-        isOfflineMode = true;
-      }
-    } catch (e) {
-      debugPrint('Supabase Auth failed: $e. Forcing local offline account creation.');
-      isOfflineMode = true;
-    }
-
-    final nowStr = DateTime.now().toIso8601String();
-    
-    if (isOfflineMode || user == null) {
-      final fakeUserId = 'local_${DateTime.now().millisecondsSinceEpoch}';
-      user = User(
-        id: fakeUserId,
-        appMetadata: {},
-        userMetadata: {
-          'full_name': fullName,
-          'business_name': businessName,
-        },
-        aud: 'authenticated',
-        createdAt: nowStr,
-        email: email,
-      );
-      
-      authResponse = AuthResponse(
-        session: Session(
-          accessToken: 'offline_token',
-          tokenType: 'bearer',
-          user: user,
-        ),
-        user: user,
-      );
+    final user = authResponse.user;
+    if (user == null) {
+      throw const AuthException('Đăng ký không thành công.');
     }
 
     try {
-      String companyId;
-      if (!isOfflineMode) {
-        // 2. Create Company on Supabase
-        final companyData = await _supabase.from('companies').insert({
-          'company_name': businessName,
-        }).select().single();
+      // 2. Create Company on Supabase
+      final companyData = await _supabase.from('companies').insert({
+        'company_name': businessName,
+      }).select().single();
 
-        companyId = companyData['company_id'];
+      final companyId = companyData['company_id'];
 
-        // 3. Create User Profile on Supabase
-        await _supabase.from('users').insert({
-          'user_id': user.id,
-          'company_id': companyId,
-          'full_name': fullName,
-          'email': email,
-          'status': 'active',
-        });
-      } else {
-        companyId = 'comp_${DateTime.now().millisecondsSinceEpoch}';
-      }
+      // 3. Create User Profile on Supabase
+      await _supabase.from('users').insert({
+        'user_id': user.id,
+        'company_id': companyId,
+        'full_name': fullName,
+        'email': email,
+        'status': 'active',
+      });
 
       // 4. Save to Local Database
-      final localDb = await LocalDatabase.instance.database;
+      final nowStr = DateTime.now().toIso8601String();
       
       await localDb.insert('companies', {
         'company_id': companyId,
         'company_name': businessName,
         'created_at': nowStr,
         'updated_at': nowStr,
-        'is_synced': isOfflineMode ? 0 : 1,
+        'is_synced': 1,
       });
 
       await localDb.insert('users', {
@@ -191,15 +143,21 @@ class AuthRepository {
         'status': 'active',
         'created_at': nowStr,
         'updated_at': nowStr,
-        'is_synced': isOfflineMode ? 0 : 1,
+        'is_synced': 1,
       });
       
     } catch (e) {
-      debugPrint('Unexpected error during registration database insertion: $e');
-      if (!isOfflineMode) rethrow;
+      debugPrint('Error inserting profile data during registration: $e');
+      // If the email requires confirmation, session is null, and RLS blocks insert.
+      // In this case, the Auth user is created, but profiles aren't.
+      if (authResponse.session == null) {
+        throw const AuthException('Đăng ký thành công! Vui lòng kiểm tra Email để xác thực tài khoản.');
+      } else {
+        rethrow;
+      }
     }
 
-    return authResponse!;
+    return authResponse;
   }
 
   // Gửi email đặt lại mật khẩu qua Supabase Auth

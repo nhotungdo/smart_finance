@@ -11,6 +11,7 @@ import 'package:smart_finance/ui/screens/invoicing/create_invoice_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoice_preview_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoice_sent_screen.dart';
 import 'package:smart_finance/ui/screens/reports/reports_screen.dart';
+import 'package:smart_finance/ui/screens/settings/settings_screen.dart';
 import 'package:smart_finance/ui/widgets/main_layout.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -91,6 +92,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/reports',
           builder: (context, state) => const ReportsScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
         ),
       ],
     ),
