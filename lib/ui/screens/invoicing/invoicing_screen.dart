@@ -1,64 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:intl/intl.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:smart_finance/ui/widgets/bento_grid.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
+import 'package:smart_finance/ui/widgets/smart_button.dart';
+import 'package:smart_finance/ui/widgets/smart_text_field.dart';
+import 'package:smart_finance/providers/invoices_provider.dart';
 
-
-class InvoicingScreen extends StatelessWidget {
+class InvoicingScreen extends ConsumerWidget {
   const InvoicingScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDesktop = MediaQuery.sizeOf(context).width > 768;
-
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.transparent, // Background handled by MainLayout
-      floatingActionButton: isDesktop
-          ? null
-          : FloatingActionButton(
-              onPressed: () => context.push('/invoicing/create'),
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              child: const Icon(Icons.add),
-            ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1440),
+            constraints: const BoxConstraints(maxWidth: 1200),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header & Action
-                PageHeader(
+                const PageHeader(
                   title: 'Tổng quan hóa đơn',
                   subtitle: 'Quản lý và theo dõi hóa đơn doanh nghiệp của bạn.',
-                  action: isDesktop
-                      ? ElevatedButton.icon(
-                          onPressed: () => context.push('/invoicing/create'),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Tạo hóa đơn mới'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            textStyle: theme.textTheme.labelLarge,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        )
-                      : null,
                 ),
                 const SizedBox(height: 32),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final isMobile = width < 600;
+                    final isTablet = width >= 600 && width < 1024;
+                    final isDesktop = width >= 1024;
 
-                // Summary Cards
-                _buildSummaryCards(context, theme, isDesktop),
-                const SizedBox(height: 32),
+                    final listColSpan = isDesktop ? 3 : (isTablet ? 2 : 1);
 
-                // Invoice List Section
-                _buildInvoiceListSection(context, theme, isDesktop),
+                    return BentoGrid(
+                      mobileColumns: 1,
+                      tabletColumns: 2,
+                      desktopColumns: 3,
+                      cellHeight: 140,
+                      spacing: 20,
+                      children: [
+                        // Stats row
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _OutstandingCard(),
+                        ),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _OverdueCard(),
+                        ),
+                        if (!isMobile)
+                          BentoItem(
+                            colSpan: 1,
+                            rowSpan: 1,
+                            child: _CreateActionCard(),
+                          ),
+
+                        // List
+                        BentoItem(
+                          colSpan: listColSpan,
+                          rowSpan: 4, // Allow table to have some height
+                          child: _InvoiceListCard(isDesktop: isDesktop || isTablet),
+                        ),
+                        
+                        // Action for mobile
+                        if (isMobile)
+                          BentoItem(
+                            colSpan: 1,
+                            rowSpan: 1,
+                            child: _CreateActionCard(),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -66,238 +88,278 @@ class InvoicingScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildSummaryCards(BuildContext context, ThemeData theme, bool isDesktop) {
-    final children = [
-      Expanded(
-        flex: isDesktop ? 2 : 1,
-        child: GlassCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TỔNG CHƯA THANH TOÁN',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '\$45,230.00',
-                style: theme.textTheme.displaySmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.trending_up, color: theme.colorScheme.secondary, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    '+12% so với tháng trước',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      if (isDesktop) const SizedBox(width: 24) else const SizedBox(height: 24),
-      Expanded(
-        flex: 1,
-        child: GlassCard(
-          padding: EdgeInsets.zero,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: theme.colorScheme.error, width: 4)),
+// ─── Cards ───────────────────────────────────────────────────────────────────
+
+class _OutstandingCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return BentoCard(
+      showAccentStrip: true,
+      accentColor: theme.colorScheme.primary,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Tổng chưa thanh toán',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
             ),
-            child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '45.230k ₫',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'SỐ TIỀN QUÁ HẠN',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.error,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  Icon(Icons.warning, color: theme.colorScheme.error, size: 20),
-                ],
-              ),
-              const SizedBox(height: 8),
+              Icon(Icons.trending_up_rounded, color: theme.colorScheme.secondary, size: 20),
+              const SizedBox(width: 8),
               Text(
-                '\$8,450.00',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  color: theme.colorScheme.primary,
+                '+12% so với tháng trước',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.secondary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cần xử lý ngay (4 hóa đơn)',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  InkWell(
-                    onTap: () {},
-                    child: Text(
-                      'Xem hóa đơn quá hạn',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverdueCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return BentoCard(
+      showAccentStrip: true,
+      accentColor: theme.colorScheme.error,
+      gradient: LinearGradient(
+        colors: [
+          theme.colorScheme.error.withValues(alpha: 0.1),
+          theme.colorScheme.error.withValues(alpha: 0.0),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Số tiền quá hạn',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '8.450k ₫',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Text(
+                'Cần xử lý (4 hóa đơn)',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
-        ),
+        ],
       ),
-      ),
-    ];
-
-    if (isDesktop) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      );
-    } else {
-      return Column(
-        children: children.map((e) => e is Expanded ? e.child : e).toList(),
-      );
-    }
+    );
   }
+}
 
-  Widget _buildInvoiceListSection(BuildContext context, ThemeData theme, bool isDesktop) {
-    return GlassCard(
+class _CreateActionCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return BentoCard(
+      onTap: () => context.push('/invoicing/create'),
+      accentColor: theme.colorScheme.primary,
+      gradient: LinearGradient(
+        colors: [
+          theme.colorScheme.primary,
+          theme.colorScheme.primary.withValues(alpha: 0.8),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline_rounded, size: 36, color: theme.colorScheme.onPrimary),
+            const SizedBox(height: 12),
+            Text(
+              'Tạo hóa đơn',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── List ────────────────────────────────────────────────────────────────────
+
+class _InvoiceListCard extends ConsumerWidget {
+  final bool isDesktop;
+  const _InvoiceListCard({required this.isDesktop});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final invoicesState = ref.watch(invoicesProvider);
+
+    return BentoCard(
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // List Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLowest,
-              border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Hóa đơn gần đây',
-                  style: theme.textTheme.headlineSmall?.copyWith(
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: BentoSectionHeader(
+              title: 'Hóa đơn gần đây',
+              action: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => ref.invalidate(invoicesProvider),
+                    icon: const Icon(Icons.refresh_rounded),
                     color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.filter_list),
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    if (isDesktop) ...[
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 250,
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Tìm kiếm hóa đơn...',
-                            prefixIcon: const Icon(Icons.search),
-                            filled: true,
-                            fillColor: theme.colorScheme.surfaceContainerLowest,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                          ),
-                        ),
+                  if (isDesktop) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 200,
+                      child: SmartTextField(
+                        labelText: '',
+                        hintText: 'Tìm kiếm...',
+                        prefixIcon: Icons.search_rounded,
                       ),
-                    ],
+                    ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          
-          // Table / List
-          if (isDesktop)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 800),
-                child: DataTable(
-                  headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainer),
-                  columns: const [
-                    DataColumn(label: Text('Mã hóa đơn')),
-                    DataColumn(label: Text('Khách hàng')),
-                    DataColumn(label: Text('Ngày')),
-                    DataColumn(label: Text('Số tiền')),
-                    DataColumn(label: Text('Trạng thái')),
-                    DataColumn(label: Text('Hành động')),
-                  ],
-                  rows: [
-                    _buildDataRow(theme, 'INV-2023-089', 'Acme Corp', '12 tháng 10, 2023', '\$3,200.00', 'Quá hạn'),
-                    _buildDataRow(theme, 'INV-2023-090', 'TechSolutions Inc.', '15 tháng 10, 2023', '\$1,550.00', 'Đã thanh toán'),
-                    _buildDataRow(theme, 'INV-2023-091', 'Global Logistics', '18 tháng 10, 2023', '\$8,900.00', 'Chờ xử lý'),
-                    _buildDataRow(theme, 'INV-2023-092', 'Design Studio Co.', '20 tháng 10, 2023', '\$450.00', 'Chờ xử lý'),
-                  ],
-                ),
-              ),
-            )
-          else
-            Column(
-              children: [
-                _buildMobileInvoiceItem(theme, 'INV-2023-089', 'Acme Corp', '12 tháng 10, 2023', '\$3,200.00', 'Quá hạn'),
-                const Divider(height: 1),
-                _buildMobileInvoiceItem(theme, 'INV-2023-090', 'TechSolutions Inc.', '15 tháng 10, 2023', '\$1,550.00', 'Đã thanh toán'),
-                const Divider(height: 1),
-                _buildMobileInvoiceItem(theme, 'INV-2023-091', 'Global Logistics', '18 tháng 10, 2023', '\$8,900.00', 'Chờ xử lý'),
-                const Divider(height: 1),
-                _buildMobileInvoiceItem(theme, 'INV-2023-092', 'Design Studio Co.', '20 tháng 10, 2023', '\$450.00', 'Chờ xử lý'),
-              ],
-            ),
+          const Divider(height: 1),
+          Expanded(
+            child: invoicesState.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(
+                  child: Text('Lỗi tải hóa đơn: $err', style: TextStyle(color: theme.colorScheme.error))),
+              data: (invoices) {
+                if (invoices.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_rounded, size: 48, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+                        const SizedBox(height: 16),
+                        Text('Chưa có hóa đơn nào.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  );
+                }
 
-          // Footer
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLowest,
-              border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                final numberFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+                final dateFormat = DateFormat('dd/MM/yyyy');
+
+                if (isDesktop) {
+                  return SingleChildScrollView(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 800),
+                        child: DataTable(
+                          headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
+                          dataRowMinHeight: 72,
+                          dataRowMaxHeight: 72,
+                          columns: const [
+                            DataColumn(label: Text('Mã HĐ', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Khách hàng', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Ngày', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Số tiền', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('')),
+                          ],
+                          rows: invoices.map((inv) {
+                            return _buildDataRow(
+                              theme, 
+                              inv.invoiceNumber ?? inv.id.substring(0, 8), 
+                              inv.supplierName ?? 'Khách lẻ', 
+                              inv.invoiceDate != null ? dateFormat.format(inv.invoiceDate!) : '-', 
+                              numberFormat.format(inv.totalAmount ?? 0), 
+                              inv.scanStatus == 'processed' ? 'Hoàn tất' : 'Chờ xử lý',
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: invoices.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final inv = invoices[index];
+                      return _buildMobileInvoiceItem(
+                        theme, 
+                        inv.invoiceNumber ?? inv.id.substring(0, 8), 
+                        inv.supplierName ?? 'Khách lẻ', 
+                        inv.invoiceDate != null ? dateFormat.format(inv.invoiceDate!) : '-', 
+                        numberFormat.format(inv.totalAmount ?? 0), 
+                        inv.scanStatus == 'processed' ? 'Hoàn tất' : 'Chờ xử lý',
+                      );
+                    },
+                  );
+                }
+              },
             ),
-            alignment: Alignment.center,
-            child: TextButton(
-              onPressed: () {},
-              child: Text(
-                'Xem tất cả hóa đơn',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Center(
+              child: SmartButton.text(
+                onPressed: () {},
+                child: const Text('Xem tất cả hóa đơn', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -309,16 +371,16 @@ class InvoicingScreen extends StatelessWidget {
   DataRow _buildDataRow(ThemeData theme, String id, String client, String date, String amount, String status) {
     return DataRow(
       cells: [
-        DataCell(Text(id, style: const TextStyle(fontFamily: 'Inter'))),
-        DataCell(Text(client, style: const TextStyle(fontWeight: FontWeight.w500))),
+        DataCell(Text(id, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold))),
+        DataCell(Text(client, style: const TextStyle(fontWeight: FontWeight.w600))),
         DataCell(Text(date, style: TextStyle(color: theme.colorScheme.onSurfaceVariant))),
-        DataCell(Text(amount, style: const TextStyle(fontFamily: 'Inter'))),
+        DataCell(Text(amount, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold))),
         DataCell(_buildStatusBadge(theme, status)),
         DataCell(
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(Icons.more_vert_rounded),
               onPressed: () {},
             ),
           ),
@@ -328,63 +390,50 @@ class InvoicingScreen extends StatelessWidget {
   }
 
   Widget _buildMobileInvoiceItem(ThemeData theme, String id, String client, String date, String amount, String status) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(client, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    _buildStatusBadge(theme, status),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(id, style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'Inter')),
-                    Text(date, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(amount, style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                Text(client, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                _buildStatusBadge(theme, status),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(id, style: theme.textTheme.labelMedium?.copyWith(fontFamily: 'Inter')),
+                    Text(date, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+                Text(amount, style: theme.textTheme.titleMedium?.copyWith(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStatusBadge(ThemeData theme, String status) {
-    Color bgColor;
-    Color textColor;
-
-    switch (status) {
-      case 'Quá hạn':
-        bgColor = theme.colorScheme.errorContainer;
-        textColor = theme.colorScheme.onErrorContainer;
-        break;
-      case 'Đã thanh toán':
-        bgColor = theme.colorScheme.secondaryContainer;
-        textColor = theme.colorScheme.onSecondaryContainer;
-        break;
-      default:
-        bgColor = theme.colorScheme.surfaceContainerHighest;
-        textColor = theme.colorScheme.onSurfaceVariant;
-    }
+    final isDone = status == 'Hoàn tất';
+    final bgColor = isDone ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFFF59E0B).withValues(alpha: 0.1);
+    final textColor = isDone ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         status,
@@ -396,5 +445,3 @@ class InvoicingScreen extends StatelessWidget {
     );
   }
 }
-
-

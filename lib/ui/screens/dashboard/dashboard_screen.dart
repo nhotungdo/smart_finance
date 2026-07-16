@@ -1,38 +1,131 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:smart_finance/ui/widgets/glass_card.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:smart_finance/providers/dashboard_provider.dart';
+import 'package:smart_finance/providers/sync_provider.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:smart_finance/ui/widgets/bento_grid.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
+import 'package:smart_finance/ui/widgets/sync_status_indicator.dart';
 
-
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final syncState = ref.watch(syncNotifierProvider);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1440),
+          constraints: const BoxConstraints(maxWidth: 1200),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Section
-              const PageHeader(
+              PageHeader(
                 title: 'Tổng quan',
-                subtitle: 'Dưới đây là tóm tắt tài chính của bạn hôm nay.',
+                subtitle: 'Tóm tắt tình hình tài chính của bạn hôm nay.',
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SyncStatusIndicator(),
+                    const SizedBox(width: 12),
+                    syncState.isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.sync_rounded),
+                              tooltip: 'Đồng bộ dữ liệu',
+                              color: theme.colorScheme.primary,
+                              onPressed: () async {
+                                await ref
+                                    .read(syncNotifierProvider.notifier)
+                                    .syncNow();
+                                if (context.mounted) {
+                                  final finalState =
+                                      ref.read(syncNotifierProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        finalState.error != null
+                                            ? 'Lỗi đồng bộ: ${finalState.error}'
+                                            : 'Đồng bộ thành công!',
+                                      ),
+                                      backgroundColor: finalState.error != null
+                                          ? theme.colorScheme.error
+                                          : const Color(0xFF10B981),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 32),
-
-              // Bento Grid Layout
+              const SizedBox(height: 24),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  if (constraints.maxWidth > 768) {
-                    return _buildDesktopLayout(context, theme);
-                  }
-                  return _buildMobileLayout(context, theme);
+                  final width = constraints.maxWidth;
+                  final isMobile = width < 600;
+
+                  return BentoGrid(
+                    mobileColumns: 2,
+                    tabletColumns: 3,
+                    desktopColumns: 3,
+                    cellHeight: 140,
+                    spacing: 16,
+                    children: [
+                      // ── Stats Row ──────────────────────────────────────
+                      BentoItem(
+                        colSpan: 1,
+                        rowSpan: 1,
+                        child: _StatThuTile(),
+                      ),
+                      BentoItem(
+                        colSpan: 1,
+                        rowSpan: 1,
+                        child: _StatChiTile(),
+                      ),
+                      BentoItem(
+                        colSpan: isMobile ? 2 : 1, // Full row on mobile
+                        rowSpan: 1,
+                        child: _StatDongTienTile(),
+                      ),
+
+                      // ── Chart & Recent ─────────────────────────────────
+                      BentoItem(
+                        colSpan: isMobile ? 2 : 2,
+                        rowSpan: 2,
+                        child: _CashFlowChartTile(),
+                      ),
+                      BentoItem(
+                        colSpan: isMobile ? 2 : 1,
+                        rowSpan: 2,
+                        child: _RecentTransactionsTile(),
+                      ),
+
+                      // ── Grouped ────────────────────────────────────────
+                      BentoItem(
+                        colSpan: isMobile ? 2 : 3, // Full width always
+                        rowSpan: 2,
+                        child: _GroupedTransactionsTile(),
+                      ),
+                    ],
+                  );
                 },
               ),
             ],
@@ -41,525 +134,501 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildDesktopLayout(BuildContext context, ThemeData theme) {
-    return Column(
-      children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 4,
-                child: _buildTotalBalanceCard(context, theme),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                flex: 8,
-                child: _buildCashFlowChart(context, theme),
-              ),
-            ],
-          ),
+// ─── Stat Tiles ──────────────────────────────────────────────────────────────
+class _StatThuTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(financialSummaryProvider);
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+
+    return summaryAsync.when(
+      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      data: (summary) => BentoCard(
+        showAccentStrip: true,
+        accentColor: const Color(0xFF10B981),
+        padding: const EdgeInsets.all(20),
+        child: BentoIconTile(
+          icon: Icons.trending_up_rounded,
+          label: 'Tổng thu',
+          value: currencyFmt.format(summary.totalIncome),
+          accentColor: const Color(0xFF10B981),
+          subtitle: 'Tháng này',
         ),
-        const SizedBox(height: 24),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 6,
-              child: _buildUpcomingBills(context, theme, true),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 6,
-              child: _buildRecentTransactions(context, theme, true),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(BuildContext context, ThemeData theme) {
-    return Column(
-      children: [
-        _buildTotalBalanceCard(context, theme),
-        const SizedBox(height: 16),
-        _buildCashFlowChart(context, theme),
-        const SizedBox(height: 16),
-        _buildUpcomingBills(context, theme, false),
-        const SizedBox(height: 16),
-        _buildRecentTransactions(context, theme, false),
-      ],
-    );
-  }
-
-  Widget _buildTotalBalanceCard(BuildContext context, ThemeData theme) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TỔNG SỐ DƯ',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              Icon(Icons.account_balance_wallet, color: theme.colorScheme.secondary),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '\$124,500.00',
-            style: theme.textTheme.displaySmall?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Icon(Icons.trending_up, color: theme.colorScheme.secondary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                '+2.4% so với tháng trước',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
+}
 
-  Widget _buildCashFlowChart(BuildContext context, ThemeData theme) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Dòng tiền',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: 'Tháng này',
-                    isDense: true,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Tháng này', child: Text('Tháng này')),
-                      DropdownMenuItem(value: '30 ngày qua', child: Text('30 ngày qua')),
-                      DropdownMenuItem(value: 'Năm nay', child: Text('Năm nay')),
-                    ],
-                    onChanged: (value) {},
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 180,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 1,
-                barTouchData: BarTouchData(enabled: false),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(fontSize: 12);
-                        Widget text;
-                        switch (value.toInt()) {
-                          case 0: text = const Text('T2', style: style); break;
-                          case 1: text = const Text('T3', style: style); break;
-                          case 2: text = const Text('T4', style: style); break;
-                          case 3: text = const Text('T5', style: style); break;
-                          case 4: text = const Text('T6', style: style); break;
-                          case 5: text = const Text('T7', style: style); break;
-                          case 6: text = const Text('CN', style: style); break;
-                          default: text = const Text('', style: style); break;
-                        }
-                        return SideTitleWidget(meta: meta, child: text);
-                      },
-                    ),
-                  ),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                barGroups: [
-                  BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 0.4, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 0.2, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 0.6, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 0.3, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 0.8, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 5, barRods: [BarChartRodData(toY: 0.45, color: theme.colorScheme.error, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                  BarChartGroupData(x: 6, barRods: [BarChartRodData(toY: 0.9, color: theme.colorScheme.secondary, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))]),
-                ],
-              ),
-            ),
-          ),
-        ],
+class _StatChiTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final summaryAsync = ref.watch(financialSummaryProvider);
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+
+    return summaryAsync.when(
+      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      data: (summary) => BentoCard(
+        showAccentStrip: true,
+        accentColor: theme.colorScheme.error,
+        padding: const EdgeInsets.all(20),
+        child: BentoIconTile(
+          icon: Icons.trending_down_rounded,
+          label: 'Tổng chi',
+          value: currencyFmt.format(summary.totalExpense),
+          accentColor: theme.colorScheme.error,
+          subtitle: 'Tháng này',
+        ),
       ),
     );
   }
+}
 
-  Widget _buildUpcomingBills(BuildContext context, ThemeData theme, bool isDesktop) {
-    return GlassCard(
-      padding: isDesktop ? EdgeInsets.zero : const EdgeInsets.all(24),
+class _StatDongTienTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final summaryAsync = ref.watch(financialSummaryProvider);
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+
+    return summaryAsync.when(
+      loading: () => const BentoCard(child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
+      data: (summary) {
+        final isPositive = summary.cashFlow >= 0;
+        final color = isPositive ? theme.colorScheme.primary : const Color(0xFFF59E0B);
+        return BentoCard(
+          showAccentStrip: true,
+          accentColor: color,
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: BentoIconTile(
+            icon: isPositive ? Icons.account_balance_wallet_rounded : Icons.warning_amber_rounded,
+            label: 'Dòng tiền',
+            value: currencyFmt.format(summary.cashFlow),
+            accentColor: color,
+            subtitle: 'Hiện tại',
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Chart Tile ──────────────────────────────────────────────────────────────
+class _CashFlowChartTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final chartAsync = ref.watch(cashFlowChartProvider);
+
+    return BentoCard(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: isDesktop ? const EdgeInsets.all(24.0) : EdgeInsets.zero,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          BentoSectionHeader(
+            title: 'Dòng tiền',
+            subtitle: '7 ngày gần nhất',
+            action: Row(
               children: [
-                Text(
-                  'Hóa đơn sắp tới',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text('Xem tất cả', style: TextStyle(color: theme.colorScheme.primary)),
-                ),
+                _LegendDot(color: const Color(0xFF10B981), label: 'Thu'),
+                const SizedBox(width: 8),
+                _LegendDot(color: theme.colorScheme.error, label: 'Chi'),
               ],
             ),
           ),
-          if (isDesktop) ...[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 500),
-                child: DataTable(
-                  headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainer),
-                  columns: const [
-                    DataColumn(label: Text('Hóa đơn')),
-                    DataColumn(label: Text('Ngày đến hạn')),
-                    DataColumn(label: Text('Số tiền')),
-                  ],
-                  rows: [
-                    DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          Icon(Icons.description, color: theme.colorScheme.error, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Lưu trữ AWS', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      )),
-                      const DataCell(Text('Đến hạn trong 2 ngày')),
-                      const DataCell(Text('\$450.00', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter'))),
-                    ]),
-                    DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          Icon(Icons.home_work, color: theme.colorScheme.error, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Thuê văn phòng', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      )),
-                      const DataCell(Text('Đến hạn trong 5 ngày')),
-                      const DataCell(Text('\$2,100.00', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter'))),
-                    ]),
-                  ],
-                ),
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 16),
-            _buildBillItem(
-              context,
-              theme,
-              icon: Icons.description,
-              title: 'Lưu trữ AWS',
-              subtitle: 'Đến hạn trong 2 ngày',
-              amount: '\$450.00',
-              iconColor: theme.colorScheme.error,
-              iconBg: theme.colorScheme.errorContainer.withValues(alpha: 0.2),
-            ),
-            const SizedBox(height: 12),
-            _buildBillItem(
-              context,
-              theme,
-              icon: Icons.home_work,
-              title: 'Thuê văn phòng',
-              subtitle: 'Đến hạn trong 5 ngày',
-              amount: '\$2,100.00',
-              iconColor: theme.colorScheme.error,
-              iconBg: theme.colorScheme.errorContainer.withValues(alpha: 0.2),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentTransactions(BuildContext context, ThemeData theme, bool isDesktop) {
-    return GlassCard(
-      padding: isDesktop ? EdgeInsets.zero : const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: isDesktop ? const EdgeInsets.all(24.0) : EdgeInsets.zero,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Giao dịch gần đây',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text('Xem tất cả', style: TextStyle(color: theme.colorScheme.primary)),
-                ),
-              ],
-            ),
-          ),
-          if (isDesktop) ...[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 500),
-                child: DataTable(
-                  headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainer),
-                  columns: const [
-                    DataColumn(label: Text('Giao dịch')),
-                    DataColumn(label: Text('Ngày')),
-                    DataColumn(label: Text('Số tiền')),
-                  ],
-                  rows: [
-                    DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          Icon(Icons.arrow_downward, color: theme.colorScheme.secondary, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Hóa đơn khách hàng #1024', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      )),
-                      const DataCell(Text('Hôm nay, 2:30 CH')),
-                      DataCell(Text('+\$3,400.00', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold, fontFamily: 'Inter'))),
-                    ]),
-                    DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          Icon(Icons.shopping_cart, color: theme.colorScheme.onSurfaceVariant, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Văn phòng phẩm', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      )),
-                      const DataCell(Text('Hôm qua')),
-                      DataCell(Text('-\$125.50', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontFamily: 'Inter'))),
-                    ]),
-                    DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          Icon(Icons.arrow_downward, color: theme.colorScheme.secondary, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Chuyển khoản Stripe', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      )),
-                      const DataCell(Text('24 tháng 10, 2023')),
-                      DataCell(Text('+\$850.00', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold, fontFamily: 'Inter'))),
-                    ]),
-                  ],
-                ),
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 16),
-            _buildTransactionItem(
-              context,
-              theme,
-              icon: Icons.arrow_downward,
-              title: 'Hóa đơn khách hàng #1024',
-              subtitle: 'Hôm nay, 2:30 CH',
-              amount: '+\$3,400.00',
-              isPositive: true,
-            ),
-            const Divider(height: 24),
-            _buildTransactionItem(
-              context,
-              theme,
-              icon: Icons.shopping_cart,
-              title: 'Văn phòng phẩm',
-              subtitle: 'Hôm qua',
-              amount: '-\$125.50',
-              isPositive: false,
-            ),
-            const Divider(height: 24),
-            _buildTransactionItem(
-              context,
-              theme,
-              icon: Icons.arrow_downward,
-              title: 'Chuyển khoản Stripe',
-              subtitle: '24 tháng 10, 2023',
-              amount: '+\$850.00',
-              isPositive: true,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBillItem(
-    BuildContext context,
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String amount,
-    required Color iconColor,
-    required Color iconBg,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-        borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
+          const SizedBox(height: 24),
+          Expanded(
+            child: chartAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                  child: Text('Lỗi',
+                      style: TextStyle(color: theme.colorScheme.error))),
+              data: (points) {
+                if (points.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.bar_chart_rounded,
+                            size: 48,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.3)),
+                        const SizedBox(height: 8),
+                        Text('Chưa có dữ liệu',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ],
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  );
+                }
+
+                final maxVal = points.fold(0.0, (max, p) {
+                  final m = p.income > p.expense ? p.income : p.expense;
+                  return m > max ? m : max;
+                });
+                final maxY = maxVal == 0 ? 1.0 : maxVal * 1.2;
+
+                return BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxY,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (_) =>
+                            theme.colorScheme.surfaceContainerHighest,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final label = rodIndex == 0 ? 'Thu' : 'Chi';
+                          final val = NumberFormat.compactCurrency(
+                                  locale: 'vi_VN', symbol: '₫')
+                              .format(rod.toY);
+                          return BarTooltipItem(
+                            '$label: $val',
+                            TextStyle(
+                              color: theme.colorScheme.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                        },
+                      ),
                     ),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final idx = value.toInt();
+                            if (idx < 0 || idx >= points.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return SideTitleWidget(
+                              meta: meta,
+                              child: Text(
+                                points[idx].label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (val) => FlLine(
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.4),
+                        strokeWidth: 1,
+                        dashArray: [4, 4],
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: List.generate(points.length, (i) {
+                      final p = points[i];
+                      return BarChartGroupData(
+                        x: i,
+                        barsSpace: 6,
+                        barRods: [
+                          BarChartRodData(
+                            toY: p.income,
+                            color: const Color(0xFF10B981),
+                            width: 12,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(6)),
+                          ),
+                          BarChartRodData(
+                            toY: p.expense,
+                            color: theme.colorScheme.error,
+                            width: 12,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(6)),
+                          ),
+                        ],
+                      );
+                    }),
                   ),
-                ],
-              ),
-            ],
-          ),
-          Text(
-            amount,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTransactionItem(
-    BuildContext context,
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String amount,
-    required bool isPositive,
-  }) {
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isPositive
-                    ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.2)
-                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: isPositive ? theme.colorScheme.secondary : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        Text(
-          amount,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: isPositive ? theme.colorScheme.secondary : theme.colorScheme.primary,
-          ),
-        ),
+        const SizedBox(width: 6),
+        Text(label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600)),
       ],
     );
   }
 }
 
+// ─── Recent Transactions Tile ────────────────────────────────────────────────
+class _RecentTransactionsTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final recentAsync = ref.watch(recentTransactionsProvider);
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
 
+    return BentoCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BentoSectionHeader(
+            title: 'Gần đây',
+            action: InkWell(
+              onTap: () => context.go('/expenses'),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text('Tất cả',
+                    style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: recentAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Lỗi')),
+              data: (txList) {
+                if (txList.isEmpty) {
+                  return Center(
+                    child: Text('Chưa có GD',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: txList.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final tx = txList[index];
+                    final isIncome = tx.transactionType == 'income';
+                    final color = isIncome
+                        ? const Color(0xFF10B981)
+                        : theme.colorScheme.error;
+
+                    return Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isIncome
+                                ? Icons.arrow_downward_rounded
+                                : Icons.arrow_upward_rounded,
+                            color: color,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tx.description?.isNotEmpty == true
+                                    ? tx.description!
+                                    : (isIncome ? 'Thu nhập' : 'Chi tiêu'),
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                DateFormat('dd/MM HH:mm')
+                                    .format(tx.transactionDate),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${isIncome ? '+' : '-'}${currencyFmt.format(tx.amount)}',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Grouped Transactions Tile ───────────────────────────────────────────────
+class _GroupedTransactionsTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final groupedAsync = ref.watch(groupedTransactionsProvider);
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+
+    return BentoCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BentoSectionHeader(
+            title: 'Chi tiết theo ngày',
+            subtitle: 'Lịch sử dòng tiền',
+            action: Icon(Icons.calendar_month_rounded,
+                color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: groupedAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Lỗi')),
+              data: (groups) {
+                if (groups.isEmpty) {
+                  return Center(
+                    child: Text('Chưa có dữ liệu',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  );
+                }
+
+                // Show up to 2 groups on dashboard to fit 2 rows
+                final displayGroups = groups.take(2).toList();
+
+                return ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: displayGroups.length,
+                  separatorBuilder: (_, _) => const Divider(height: 24),
+                  itemBuilder: (context, index) {
+                    final group = displayGroups[index];
+                    final dayTotal = group.dayTotal;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              group.dateLabel,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            Text(
+                              '${dayTotal >= 0 ? '+' : ''}${currencyFmt.format(dayTotal)}',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: dayTotal >= 0
+                                    ? const Color(0xFF10B981)
+                                    : theme.colorScheme.error,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...group.transactions.map((tx) {
+                          final isIncome = tx.transactionType == 'income';
+                          final color = isIncome
+                              ? const Color(0xFF10B981)
+                              : theme.colorScheme.error;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: color, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    tx.description?.isNotEmpty == true
+                                        ? tx.description!
+                                        : (isIncome ? 'Thu nhập' : 'Chi tiêu'),
+                                    style: theme.textTheme.bodyMedium,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '${isIncome ? '+' : '-'}${currencyFmt.format(tx.amount)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

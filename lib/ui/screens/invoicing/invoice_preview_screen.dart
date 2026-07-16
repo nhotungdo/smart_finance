@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:smart_finance/ui/widgets/smart_button.dart';
 
 class InvoicePreviewScreen extends StatelessWidget {
   const InvoicePreviewScreen({super.key});
@@ -42,26 +44,16 @@ class InvoicePreviewScreen extends StatelessWidget {
                     ),
                     Row(
                       children: [
-                        OutlinedButton.icon(
+                        SmartButton.outlined(
                           onPressed: () => context.pop(),
                           icon: const Icon(Icons.edit, size: 18),
-                          label: const Text('Chỉnh sửa'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: theme.colorScheme.primary,
-                            side: BorderSide(color: theme.colorScheme.primary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
+                          child: const Text('Chỉnh sửa'),
                         ),
                         const SizedBox(width: 16),
-                        ElevatedButton.icon(
+                        SmartButton(
                           onPressed: () => context.push('/invoicing/sent'),
                           icon: const Icon(Icons.send, size: 18),
-                          label: const Text('Gửi hóa đơn'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
+                          child: const Text('Gửi hóa đơn'),
                         ),
                       ],
                     ),
@@ -70,19 +62,10 @@ class InvoicePreviewScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Document Container
-                Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 10),
-                      )
-                    ],
-                  ),
+                BentoCard(
+                  padding: EdgeInsets.zero,
+                  backgroundColor: theme.colorScheme.surfaceContainerLowest,
+                  borderRadius: 16,
                   child: Column(
                     children: [
                       // Document Paper Edge Decoration

@@ -4,11 +4,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smart_finance/ui/routing/app_router.dart';
 import 'package:smart_finance/ui/theme/app_theme.dart';
-
 import 'package:smart_finance/providers/theme_provider.dart';
+import 'package:smart_finance/providers/sync_provider.dart';
+
+import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SQLite FFI for Windows
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   // Initialize Supabase
   await Supabase.initialize(
@@ -26,11 +35,44 @@ void main() async {
   ));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Khởi động BackgroundSyncService sau khi app đã build xong
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startBackgroundSync();
+    });
+  }
+
+  void _startBackgroundSync() {
+    final syncService = ref.read(backgroundSyncServiceProvider);
+
+    // Đăng ký callback để log trạng thái (tuỳ chọn: có thể hiển thị snackbar)
+    syncService.onStatusChanged = (status, error) {
+      debugPrint('[App] BackgroundSync status: $status ${error ?? ''}');
+    };
+
+    syncService.start();
+    debugPrint('[App] BackgroundSyncService đã được khởi động.');
+  }
+
+  @override
+  void dispose() {
+    // Dừng service khi app đóng
+    ref.read(backgroundSyncServiceProvider).stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp.router(

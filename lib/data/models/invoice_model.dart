@@ -1,0 +1,123 @@
+import 'dart:convert';
+
+class InvoiceModel {
+  final String id;
+  final String companyId;
+  final String uploadedBy;
+  final String? supplierName;
+  final String? supplierTaxCode;
+  final String? invoiceNumber;
+  final DateTime? invoiceDate;
+  final double? subtotal;
+  final double? vatRate;
+  final double? vatAmount;
+  final double? totalAmount;
+  final String? imagePath;
+  final String scanStatus;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isSynced;
+
+  InvoiceModel({
+    required this.id,
+    required this.companyId,
+    required this.uploadedBy,
+    this.supplierName,
+    this.supplierTaxCode,
+    this.invoiceNumber,
+    this.invoiceDate,
+    this.subtotal,
+    this.vatRate,
+    this.vatAmount,
+    this.totalAmount,
+    this.imagePath,
+    this.scanStatus = 'pending',
+    required this.createdAt,
+    required this.updatedAt,
+    this.isSynced = false,
+  });
+
+  InvoiceModel copyWith({
+    String? id,
+    String? companyId,
+    String? uploadedBy,
+    String? supplierName,
+    String? supplierTaxCode,
+    String? invoiceNumber,
+    DateTime? invoiceDate,
+    double? subtotal,
+    double? vatRate,
+    double? vatAmount,
+    double? totalAmount,
+    String? imagePath,
+    String? scanStatus,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isSynced,
+  }) {
+    return InvoiceModel(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      uploadedBy: uploadedBy ?? this.uploadedBy,
+      supplierName: supplierName ?? this.supplierName,
+      supplierTaxCode: supplierTaxCode ?? this.supplierTaxCode,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      invoiceDate: invoiceDate ?? this.invoiceDate,
+      subtotal: subtotal ?? this.subtotal,
+      vatRate: vatRate ?? this.vatRate,
+      vatAmount: vatAmount ?? this.vatAmount,
+      totalAmount: totalAmount ?? this.totalAmount,
+      imagePath: imagePath ?? this.imagePath,
+      scanStatus: scanStatus ?? this.scanStatus,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isSynced: isSynced ?? this.isSynced,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'invoice_id': id,
+      'company_id': companyId,
+      'uploaded_by': uploadedBy,
+      'supplier_name': supplierName,
+      'supplier_tax_code': supplierTaxCode,
+      'invoice_number': invoiceNumber,
+      'invoice_date': invoiceDate?.toIso8601String(),
+      'subtotal': subtotal,
+      'vat_rate': vatRate,
+      'vat_amount': vatAmount,
+      'total_amount': totalAmount,
+      'image_path': imagePath,
+      'scan_status': scanStatus,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'is_synced': isSynced ? 1 : 0,
+    };
+  }
+
+  factory InvoiceModel.fromMap(Map<String, dynamic> map) {
+    return InvoiceModel(
+      id: map['invoice_id'] ?? '',
+      companyId: map['company_id'] ?? '',
+      uploadedBy: map['uploaded_by'] ?? '',
+      supplierName: map['supplier_name'],
+      supplierTaxCode: map['supplier_tax_code'],
+      invoiceNumber: map['invoice_number'],
+      invoiceDate: map['invoice_date'] != null ? DateTime.parse(map['invoice_date']) : null,
+      subtotal: map['subtotal']?.toDouble(),
+      vatRate: map['vat_rate']?.toDouble(),
+      vatAmount: map['vat_amount']?.toDouble(),
+      totalAmount: map['total_amount']?.toDouble(),
+      imagePath: map['image_path'],
+      scanStatus: map['scan_status'] ?? 'pending',
+      createdAt: DateTime.parse(map['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(map['updated_at'] ?? DateTime.now().toIso8601String()),
+      isSynced: map['is_synced'] == 1,
+    );
+  }
+
+  String toJson() => json.encode(toMap());
+
+  factory InvoiceModel.fromJson(String source) => InvoiceModel.fromMap(json.decode(source));
+}

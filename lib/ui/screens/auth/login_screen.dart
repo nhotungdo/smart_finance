@@ -1,287 +1,493 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:smart_finance/ui/widgets/smart_button.dart';
+import 'package:smart_finance/ui/widgets/smart_text_field.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _obscure = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    await ref.read(authNotifierProvider.notifier).signIn(
+          _emailCtrl.text.trim(),
+          _passCtrl.text,
+        );
+    if (!mounted) return;
+    final state = ref.read(authNotifierProvider);
+    if (state.hasError) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Lỗi: ${state.error}'),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ));
+    } else {
+      context.go('/dashboard');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final authState = ref.watch(authNotifierProvider);
+    final isLoading = authState.isLoading;
     final size = MediaQuery.sizeOf(context);
+    final isWide = size.width > 800;
 
     return Scaffold(
-      body: Container(
-        width: size.width,
-        height: size.height,
-        color: theme.colorScheme.surface,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Background subtle pattern
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _GridPatternPainter(theme.colorScheme.onSurface.withValues(alpha: 0.05)),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: isWide
+            ? _WideLogin(
+                theme: theme,
+                isDark: isDark,
+                formKey: _formKey,
+                emailCtrl: _emailCtrl,
+                passCtrl: _passCtrl,
+                obscure: _obscure,
+                isLoading: isLoading,
+                onToggleObscure: () => setState(() => _obscure = !_obscure),
+                onSubmit: _submit,
+              )
+            : _NarrowLogin(
+                theme: theme,
+                formKey: _formKey,
+                emailCtrl: _emailCtrl,
+                passCtrl: _passCtrl,
+                obscure: _obscure,
+                isLoading: isLoading,
+                onToggleObscure: () => setState(() => _obscure = !_obscure),
+                onSubmit: _submit,
               ),
+      ),
+    );
+  }
+}
+
+// ── Wide Layout ───────────────────────────────────────────────────────────────
+class _WideLogin extends StatelessWidget {
+  final ThemeData theme;
+  final bool isDark;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailCtrl;
+  final TextEditingController passCtrl;
+  final bool obscure;
+  final bool isLoading;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onSubmit;
+
+  const _WideLogin({
+    required this.theme,
+    required this.isDark,
+    required this.formKey,
+    required this.emailCtrl,
+    required this.passCtrl,
+    required this.obscure,
+    required this.isLoading,
+    required this.onToggleObscure,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Left: Brand Hero Bento
+        Expanded(
+          flex: 5,
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
+                    : [const Color(0xFFF8FAFC), Colors.white],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(28),
             ),
-
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Logo Header
-                    Text(
-                      'SmartFinance',
-                      style: theme.textTheme.displayMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontSize: 32,
-                      ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -100,
+                  right: -100,
+                  child: Container(
+                    width: 350,
+                    height: 350,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : theme.colorScheme.primary.withValues(alpha: 0.05),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Đối tác đáng tin cậy cho doanh nghiệp của bạn',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                  ),
+                ),
+                Positioned(
+                  bottom: -80,
+                  left: -80,
+                  child: Container(
+                    width: 280,
+                    height: 280,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : theme.colorScheme.primary.withValues(alpha: 0.04),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Glass Panel Login Card
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withValues(alpha: 0.15) : theme.colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: isDark ? Colors.white.withValues(alpha: 0.2) : theme.colorScheme.primary.withValues(alpha: 0.2)),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              )
-                            ],
+                            child: Icon(Icons.auto_graph,
+                                color: isDark ? Colors.white : theme.colorScheme.primary, size: 24),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Email
-                              _buildLabel(context, 'Địa chỉ Email'),
-                              const SizedBox(height: 8),
-                              _buildTextField(
-                                context,
-                                controller: _emailController,
-                                hint: 'you@company.com',
-                                icon: Icons.mail_outline,
-                                keyboardType: TextInputType.emailAddress,
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Password
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildLabel(context, 'Mật khẩu'),
-                                  TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'Quên mật khẩu?',
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(
-                                context,
-                                controller: _passwordController,
-                                hint: '••••••••',
-                                icon: Icons.lock_outline,
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-
-                              // Login Button
-                              ElevatedButton(
-                                onPressed: () {
-                                  // TODO: Implement Login logic
-                                  context.go('/dashboard');
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: theme.colorScheme.onPrimary,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Đăng nhập',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-
-
-
-                              // Sign Up
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "Chưa có tài khoản? ",
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      context.go('/register');
-                                    },
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'Đăng ký',
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        color: theme.colorScheme.secondary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          const SizedBox(width: 12),
+                          Text(
+                            'SmartFinance',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : theme.colorScheme.primary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Chào mừng\ntrở lại 👋',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : theme.colorScheme.primary,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Đăng nhập để tiếp tục quản lý\ntài chính doanh nghiệp của bạn.',
+                        style: TextStyle(
+                          color: isDark ? Colors.white.withValues(alpha: 0.7) : theme.colorScheme.onSurfaceVariant,
+                          fontSize: 16,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      // Mini feature grid
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          _FeatureChip(label: '📊 Báo cáo tức thì'),
+                          _FeatureChip(label: '🔄 Sync offline'),
+                          _FeatureChip(label: '🧾 Quản lý hóa đơn'),
+                          _FeatureChip(label: '🔒 Bảo mật tuyệt đối'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Right: Form Bento tiles
+        Expanded(
+          flex: 4,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: _LoginForm(
+              theme: theme,
+              formKey: formKey,
+              emailCtrl: emailCtrl,
+              passCtrl: passCtrl,
+              obscure: obscure,
+              isLoading: isLoading,
+              onToggleObscure: onToggleObscure,
+              onSubmit: onSubmit,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Narrow Layout ─────────────────────────────────────────────────────────────
+class _NarrowLogin extends StatelessWidget {
+  final ThemeData theme;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailCtrl;
+  final TextEditingController passCtrl;
+  final bool obscure;
+  final bool isLoading;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onSubmit;
+
+  const _NarrowLogin({
+    required this.theme,
+    required this.formKey,
+    required this.emailCtrl,
+    required this.passCtrl,
+    required this.obscure,
+    required this.isLoading,
+    required this.onToggleObscure,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 540),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header tile
+          BentoCard(
+            accentColor: theme.colorScheme.primary,
+            showAccentStrip: true,
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primary.withValues(alpha: 0.08),
+                theme.colorScheme.secondary.withValues(alpha: 0.04),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.secondary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.auto_graph,
+                          color: Colors.white, size: 22),
                     ),
+                    const SizedBox(width: 10),
+                    Text('SmartFinance',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                        )),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
+                Text('Đăng nhập',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('Chào mừng trở lại!',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant)),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 14),
+          _LoginForm(
+            theme: theme,
+            formKey: formKey,
+            emailCtrl: emailCtrl,
+            passCtrl: passCtrl,
+            obscure: obscure,
+            isLoading: isLoading,
+            onToggleObscure: onToggleObscure,
+            onSubmit: onSubmit,
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildLabel(BuildContext context, String text) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-    BuildContext context, {
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Colors.grey,
-        ),
-        prefixIcon: Icon(icon, color: Colors.grey),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
         ),
       ),
     );
   }
 }
 
-class _GridPatternPainter extends CustomPainter {
-  final Color color;
-  _GridPatternPainter(this.color);
+// ── Shared Form ───────────────────────────────────────────────────────────────
+class _LoginForm extends StatelessWidget {
+  final ThemeData theme;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailCtrl;
+  final TextEditingController passCtrl;
+  final bool obscure;
+  final bool isLoading;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onSubmit;
+
+  const _LoginForm({
+    required this.theme,
+    required this.formKey,
+    required this.emailCtrl,
+    required this.passCtrl,
+    required this.obscure,
+    required this.isLoading,
+    required this.onToggleObscure,
+    required this.onSubmit,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-
-    const double spacing = 24.0;
-
-    for (double i = 0; i < size.width; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-
-    for (double i = 0; i < size.height; i += spacing) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Email tile
+          BentoCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BentoSectionHeader(title: 'Email'),
+                const SizedBox(height: 12),
+                SmartTextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  hintText: 'email@congty.com',
+                  prefixIcon: Icons.email_outlined,
+                  labelText: 'Địa chỉ email',
+                  validator: (v) => v == null || !v.contains('@')
+                      ? 'Email không hợp lệ'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Password tile
+          BentoCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BentoSectionHeader(title: 'Mật khẩu'),
+                const SizedBox(height: 12),
+                SmartTextField(
+                  controller: passCtrl,
+                  obscureText: obscure,
+                  hintText: '••••••••',
+                  labelText: 'Mật khẩu',
+                  prefixIcon: Icons.lock_outline,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                        obscure ? Icons.visibility_off : Icons.visibility),
+                    onPressed: onToggleObscure,
+                  ),
+                  validator: (v) => v == null || v.length < 6
+                      ? 'Mật khẩu ít nhất 6 ký tự'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SmartButton.text(
+                    onPressed: () => context.push('/forgot-password'),
+                    child: Text('Quên mật khẩu?',
+                        style:
+                            TextStyle(color: theme.colorScheme.primary)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Submit tile
+          BentoCard(
+            accentColor: theme.colorScheme.primary,
+            padding: EdgeInsets.zero,
+            child: SizedBox(
+              width: double.infinity,
+              child: SmartButton(
+                onPressed: onSubmit,
+                isLoading: isLoading,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: const Text('Đăng nhập',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Register link
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Chưa có tài khoản? ',
+                    style: theme.textTheme.bodyMedium),
+                SmartButton.text(
+                  onPressed: () => context.go('/register'),
+                  child: Text('Đăng ký ngay',
+                      style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _FeatureChip extends StatelessWidget {
+  final String label;
+  const _FeatureChip({required this.label});
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+      ),
+    );
+  }
 }

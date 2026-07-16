@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:smart_finance/ui/widgets/smart_button.dart';
 
 class InvoiceSentScreen extends StatelessWidget {
   const InvoiceSentScreen({super.key});
@@ -15,19 +17,10 @@ class InvoiceSentScreen extends StatelessWidget {
           padding: const EdgeInsets.all(24.0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 10),
-                  )
-                ],
-              ),
+            child: BentoCard(
+              padding: EdgeInsets.zero,
+              backgroundColor: theme.colorScheme.surfaceContainerLowest,
+              borderRadius: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -204,30 +197,20 @@ class InvoiceSentScreen extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton.icon(
+                                child: SmartButton.outlined(
                                   onPressed: () {},
                                   icon: const Icon(Icons.share, size: 18),
-                                  label: const Text('Chia sẻ liên kết'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    foregroundColor: theme.colorScheme.onSurface,
-                                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: const Text('Chia sẻ liên kết'),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: OutlinedButton.icon(
+                                child: SmartButton.outlined(
                                   onPressed: () {},
                                   icon: const Icon(Icons.download, size: 18),
-                                  label: const Text('Tải xuống PDF'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    foregroundColor: theme.colorScheme.onSurface,
-                                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: const Text('Tải xuống PDF'),
                                 ),
                               ),
                             ],
@@ -235,14 +218,9 @@ class InvoiceSentScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
-                            child: ElevatedButton(
+                            child: SmartButton(
                               onPressed: () => context.go('/invoicing'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: theme.colorScheme.onPrimary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: const Text('Quay lại Hóa đơn'),
                             ),
                           ),
