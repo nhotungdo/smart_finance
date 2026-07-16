@@ -12,30 +12,45 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _dotController;
+  late AnimationController _revealCtrl;
+  late AnimationController _dotCtrl;
+  late AnimationController _slideCtrl;
   late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
+
+    _revealCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 900),
     );
-    _dotController = AnimationController(
+    _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800),
+    );
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
     )..repeat();
 
-    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-    _fadeController.forward();
+    _fadeAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeOutCubic);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _revealCtrl.forward();
+      _slideCtrl.forward();
+    });
 
     _checkSession();
   }
 
   Future<void> _checkSession() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2, milliseconds: 400));
     if (!mounted) return;
     final session = Supabase.instance.client.auth.currentSession;
     context.go(session != null ? '/dashboard' : '/login');
@@ -43,8 +58,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _dotController.dispose();
+    _revealCtrl.dispose();
+    _dotCtrl.dispose();
+    _slideCtrl.dispose();
     super.dispose();
   }
 
@@ -59,9 +75,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       backgroundColor: theme.scaffoldBackgroundColor,
       body: FadeTransition(
         opacity: _fadeAnim,
-        child: isWide
-            ? _WideSplash(theme: theme, isDark: isDark, dotController: _dotController)
-            : _NarrowSplash(theme: theme, isDark: isDark, dotController: _dotController),
+        child: SlideTransition(
+          position: _slideAnim,
+          child: isWide
+              ? _WideSplash(theme: theme, isDark: isDark, dotCtrl: _dotCtrl)
+              : _NarrowSplash(theme: theme, isDark: isDark, dotCtrl: _dotCtrl),
+        ),
       ),
     );
   }
@@ -71,96 +90,128 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 class _WideSplash extends StatelessWidget {
   final ThemeData theme;
   final bool isDark;
-  final AnimationController dotController;
+  final AnimationController dotCtrl;
 
   const _WideSplash({
     required this.theme,
     required this.isDark,
-    required this.dotController,
+    required this.dotCtrl,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Left: Brand Bento tile
+        // Left: Brand hero
         Expanded(
           flex: 5,
           child: Container(
+            margin: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? [const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
-                    : [const Color(0xFFF8FAFC), Colors.white],
+                    ? [const Color(0xFF13111C), const Color(0xFF1E1B2E)]
+                    : [const Color(0xFF6C63FF), const Color(0xFF8B5CF6)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(32),
             ),
             child: Stack(
               children: [
-                // Decorative circles
+                // Decorative orbs
                 Positioned(
-                  top: -80,
-                  right: -80,
+                  top: -60,
+                  right: -60,
                   child: Container(
-                    width: 300,
-                    height: 300,
+                    width: 280,
+                    height: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.white.withValues(alpha: 0.04) : theme.colorScheme.primary.withValues(alpha: 0.04),
+                      color: Colors.white.withValues(alpha: 0.05),
                     ),
                   ),
                 ),
                 Positioned(
-                  bottom: -60,
-                  left: -60,
+                  bottom: -80,
+                  left: -40,
                   child: Container(
-                    width: 250,
-                    height: 250,
+                    width: 240,
+                    height: 240,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.white.withValues(alpha: 0.03) : theme.colorScheme.primary.withValues(alpha: 0.03),
+                      color: Colors.white.withValues(alpha: 0.04),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 100,
+                  left: 40,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
                     ),
                   ),
                 ),
                 // Content
-                Center(
+                Padding(
+                  padding: const EdgeInsets.all(48),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.15) : theme.colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: isDark ? Colors.white.withValues(alpha: 0.2) : theme.colorScheme.primary.withValues(alpha: 0.2),
+                      // Logo row
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: const Icon(Icons.auto_graph,
+                                color: Colors.white, size: 26),
                           ),
-                        ),
-                        child: Icon(Icons.auto_graph,
-                            color: isDark ? Colors.white : theme.colorScheme.primary, size: 44),
+                          const SizedBox(width: 14),
+                          const Text(
+                            'SmartFinance',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 28),
+                      const Spacer(),
+                      // Hero text
                       Text(
-                        'SmartFinance',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : theme.colorScheme.primary,
-                          fontSize: 36,
+                        'Tài chính\nthông minh\ncho SME 🚀',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 44,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                          height: 1.15,
+                          letterSpacing: -1.0,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 20),
                       Text(
-                        'Quản lý tài chính thông minh\ncho doanh nghiệp SME',
-                        textAlign: TextAlign.center,
+                        'Quản lý dòng tiền, hóa đơn và báo cáo\ntài chính trong một nền tảng duy nhất.',
                         style: TextStyle(
-                          color: isDark ? Colors.white.withValues(alpha: 0.7) : theme.colorScheme.onSurfaceVariant,
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 16,
                           height: 1.6,
                         ),
                       ),
+                      const SizedBox(height: 48),
                     ],
                   ),
                 ),
@@ -169,38 +220,55 @@ class _WideSplash extends StatelessWidget {
           ),
         ),
 
-        // Right: Loading Bento tiles
+        // Right: Feature tiles + loading
         Expanded(
           flex: 3,
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.fromLTRB(8, 32, 32, 32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _BentoSplashTile(
+                Text(
+                  'Đang khởi động...',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Đang kiểm tra phiên đăng nhập',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                _BentoFeatureTile(
                   theme: theme,
                   icon: Icons.bar_chart_rounded,
                   label: 'Báo cáo thời gian thực',
-                  color: theme.colorScheme.primary,
+                  sublabel: 'P&L, dòng tiền, cân đối',
+                  color: const Color(0xFF6C63FF),
                 ),
-                const SizedBox(height: 14),
-                _BentoSplashTile(
+                const SizedBox(height: 16),
+                _BentoFeatureTile(
                   theme: theme,
                   icon: Icons.receipt_long_rounded,
-                  label: 'Quản lý hóa đơn thông minh',
+                  label: 'Hóa đơn thông minh',
+                  sublabel: 'Tạo, gửi và theo dõi',
                   color: const Color(0xFF10B981),
                 ),
-                const SizedBox(height: 14),
-                _BentoSplashTile(
+                const SizedBox(height: 16),
+                _BentoFeatureTile(
                   theme: theme,
                   icon: Icons.sync_rounded,
-                  label: 'Đồng bộ offline tự động',
+                  label: 'Đồng bộ offline',
+                  sublabel: 'Tự động khi có kết nối',
                   color: const Color(0xFFF59E0B),
                 ),
-                const SizedBox(height: 40),
-                // Loading dots
-                _LoadingDots(controller: dotController, theme: theme),
+                const SizedBox(height: 48),
+                _LoadingDots(controller: dotCtrl, theme: theme),
               ],
             ),
           ),
@@ -214,12 +282,12 @@ class _WideSplash extends StatelessWidget {
 class _NarrowSplash extends StatelessWidget {
   final ThemeData theme;
   final bool isDark;
-  final AnimationController dotController;
+  final AnimationController dotCtrl;
 
   const _NarrowSplash({
     required this.theme,
     required this.isDark,
-    required this.dotController,
+    required this.dotCtrl,
   });
 
   @override
@@ -228,50 +296,49 @@ class _NarrowSplash extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-              : [const Color(0xFFF8FAFC), Colors.white],
+              ? [const Color(0xFF0D0D18), const Color(0xFF13111C)]
+              : [const Color(0xFFF5F3FF), const Color(0xFFFAF9FF)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             children: [
               const Spacer(flex: 2),
+              // Logo
               Container(
-                width: 88,
-                height: 88,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.secondary,
-                    ],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF8B5CF6)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.auto_graph, color: Colors.white, size: 48),
+                child: const Icon(Icons.auto_graph, color: Colors.white, size: 52),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               Text(
                 'SmartFinance',
                 style: theme.textTheme.displaySmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.primary,
+                  letterSpacing: -1.0,
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 'Quản lý tài chính thông minh',
                 style: theme.textTheme.bodyLarge?.copyWith(
@@ -279,33 +346,40 @@ class _NarrowSplash extends StatelessWidget {
                 ),
               ),
               const Spacer(flex: 2),
-              // Feature tiles row
+              // Feature row
               Row(
                 children: [
                   Expanded(
-                    child: _BentoSplashTile(
+                    child: _BentoCompactTile(
                       theme: theme,
                       icon: Icons.bar_chart_rounded,
                       label: 'Báo cáo',
-                      color: theme.colorScheme.primary,
-                      compact: true,
+                      color: const Color(0xFF6C63FF),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _BentoSplashTile(
+                    child: _BentoCompactTile(
+                      theme: theme,
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Hóa đơn',
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BentoCompactTile(
                       theme: theme,
                       icon: Icons.sync_rounded,
                       label: 'Offline',
-                      color: const Color(0xFF10B981),
-                      compact: true,
+                      color: const Color(0xFFF59E0B),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
-              _LoadingDots(controller: dotController, theme: theme),
               const SizedBox(height: 48),
+              _LoadingDots(controller: dotCtrl, theme: theme),
+              const SizedBox(height: 56),
             ],
           ),
         ),
@@ -314,80 +388,144 @@ class _NarrowSplash extends StatelessWidget {
   }
 }
 
-class _BentoSplashTile extends StatelessWidget {
+// ── Feature Tile (Wide) ───────────────────────────────────────────────────────
+class _BentoFeatureTile extends StatelessWidget {
   final ThemeData theme;
   final IconData icon;
   final String label;
+  final String sublabel;
   final Color color;
-  final bool compact;
 
-  const _BentoSplashTile({
+  const _BentoFeatureTile({
     required this.theme,
     required this.icon,
     required this.label,
+    required this.sublabel,
     required this.color,
-    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final border = isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : const Color(0xFFE2E8F0);
-
     return Container(
-      padding: EdgeInsets.all(compact ? 16 : 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: bg,
+        color: isDark ? const Color(0xFF1E1B2E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : const Color(0xFFE8E5FF),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.03),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: compact
-          ? Column(
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: color, size: 28),
-                const SizedBox(height: 8),
-                Text(label,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              ],
-            )
-          : Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                Text(
+                  label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: Icon(icon, color: color, size: 20),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  sublabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
+          ),
+          Icon(Icons.check_circle_rounded,
+              color: color.withValues(alpha: 0.5), size: 18),
+        ],
+      ),
     );
   }
 }
 
+// ── Compact Tile (Mobile) ─────────────────────────────────────────────────────
+class _BentoCompactTile extends StatelessWidget {
+  final ThemeData theme;
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _BentoCompactTile({
+    required this.theme,
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B2E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : color.withValues(alpha: 0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Loading dots ──────────────────────────────────────────────────────────────
 class _LoadingDots extends StatelessWidget {
   final AnimationController controller;
   final ThemeData theme;
@@ -398,24 +536,22 @@ class _LoadingDots extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, _) {
+      builder: (_, child) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(3, (i) {
-            final offset = i / 3;
-            final value = (controller.value - offset).abs();
-            final scale = value < 0.5 ? 1.0 + (0.5 - value) * 0.6 : 1.0;
+            final phase = ((controller.value - i * 0.25) % 1.0).abs();
+            final opacity = (0.3 + (1.0 - phase) * 0.7).clamp(0.3, 1.0);
+            final scale = (0.8 + (1.0 - phase) * 0.4).clamp(0.8, 1.2);
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
               child: Transform.scale(
-                scale: scale.clamp(1.0, 1.3),
+                scale: scale,
                 child: Container(
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(
-                      alpha: (0.4 + (1 - value) * 0.6).clamp(0.4, 1.0),
-                    ),
+                    color: const Color(0xFF6C63FF).withValues(alpha: opacity),
                     shape: BoxShape.circle,
                   ),
                 ),

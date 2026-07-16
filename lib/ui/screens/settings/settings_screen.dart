@@ -21,191 +21,346 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 820),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const PageHeader(
                 title: 'Cài đặt',
-                subtitle: 'Quản lý tài khoản, giao diện và đồng bộ.',
+                subtitle: 'Quản lý tài khoản, giao diện và đồng bộ dữ liệu.',
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
-              // Tài khoản Section
+              // ── Profile card ─────────────────────────────────────────────
               BentoCard(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.zero,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SettingsSectionHeader(
-                      title: 'Tài khoản',
-                      icon: Icons.person_rounded,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
-                        child: Icon(Icons.person,
-                            color: theme.colorScheme.primary),
+                    // Gradient header band
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF6C63FF),
+                            const Color(0xFF4F46E5),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(28),
+                        ),
                       ),
-                      title: Text(user?.email ?? 'Không có email',
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Đã đăng nhập',
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: const Color(0xFF10B981))),
                     ),
-                    const Divider(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          await Supabase.instance.client.auth.signOut();
-                          if (context.mounted) {
-                            context.go('/login');
-                          }
-                        },
-                        icon: const Icon(Icons.logout_rounded),
-                        label: const Text('Đăng xuất'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.error,
-                          foregroundColor: theme.colorScheme.onError,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                    Transform.translate(
+                      offset: const Offset(0, -36),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                        child: Column(
+                          children: [
+                            // Avatar
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF6C63FF), Color(0xFF8B5CF6)],
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: theme.colorScheme.surface, width: 4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF6C63FF)
+                                        .withValues(alpha: 0.3),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  user?.email?.isNotEmpty == true
+                                      ? user!.email![0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              user?.email ?? 'Không có email',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF10B981),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Đang hoạt động',
+                                    style: TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  await Supabase.instance.client.auth.signOut();
+                                  if (context.mounted) context.go('/login');
+                                },
+                                icon: const Icon(Icons.logout_rounded,
+                                    color: Color(0xFFEF4444), size: 18),
+                                label: const Text(
+                                  'Đăng xuất',
+                                  style: TextStyle(
+                                    color: Color(0xFFEF4444),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(
+                                    color: const Color(0xFFEF4444)
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Giao diện Section
+              // ── Appearance card ──────────────────────────────────────────
               BentoCard(
+                showAccentStrip: true,
+                accentColor: const Color(0xFF8B5CF6),
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SettingsSectionHeader(
-                      title: 'Giao diện',
+                    _SectionHeader(
                       icon: Icons.palette_rounded,
+                      label: 'Giao diện',
                       color: const Color(0xFF8B5CF6),
                     ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                            isDark
-                                ? Icons.dark_mode_rounded
-                                : Icons.light_mode_rounded,
-                            color: const Color(0xFF8B5CF6)),
-                      ),
-                      title: const Text('Chế độ tối (Dark Mode)'),
+                    const SizedBox(height: 20),
+                    _SettingsRow(
+                      icon: isDark
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
+                      iconBg: const Color(0xFF8B5CF6),
+                      title: 'Chế độ tối',
+                      subtitle: isDark
+                          ? 'Đang bật – Dark Mode'
+                          : 'Đang tắt – Light Mode',
                       trailing: Switch(
                         value: isDark,
-                        onChanged: (val) {
-                          ref.read(themeProvider.notifier).toggleTheme();
-                        },
+                        onChanged: (_) =>
+                            ref.read(themeProvider.notifier).toggleTheme(),
                         activeThumbColor: const Color(0xFF8B5CF6),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _ThemePreviewChip(
+                              label: '☀️ Sáng',
+                              isSelected: !isDark,
+                              color: const Color(0xFF8B5CF6),
+                              onTap: () {
+                                if (isDark) {
+                                  ref
+                                      .read(themeProvider.notifier)
+                                      .toggleTheme();
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ThemePreviewChip(
+                              label: '🌙 Tối',
+                              isSelected: isDark,
+                              color: const Color(0xFF8B5CF6),
+                              onTap: () {
+                                if (!isDark) {
+                                  ref
+                                      .read(themeProvider.notifier)
+                                      .toggleTheme();
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Đồng bộ Section
+              // ── Sync card ────────────────────────────────────────────────
               BentoCard(
+                showAccentStrip: true,
+                accentColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SettingsSectionHeader(
-                      title: 'Đồng bộ Dữ liệu',
+                    _SectionHeader(
                       icon: Icons.sync_rounded,
+                      label: 'Đồng bộ Dữ liệu',
                       color: const Color(0xFF3B82F6),
                     ),
+                    const SizedBox(height: 20),
+                    _SettingsRow(
+                      icon: Icons.cloud_sync_outlined,
+                      iconBg: const Color(0xFF3B82F6),
+                      title: 'Trạng thái đồng bộ',
+                      subtitle: 'Tự động đồng bộ khi có kết nối mạng',
+                      trailing: const SyncStatusIndicator(),
+                    ),
                     const SizedBox(height: 16),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const SyncStatusIndicator(),
-                      title: const Text('Trạng thái đồng bộ'),
-                      subtitle: const Text('Tự động đồng bộ khi có mạng'),
-                      trailing: Consumer(
-                        builder: (context, ref, child) {
-                          final syncState = ref.watch(syncNotifierProvider);
-                          return syncState.isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                )
-                              : TextButton.icon(
-                                  onPressed: () async {
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final syncState = ref.watch(syncNotifierProvider);
+                        final isSync = syncState.isLoading;
+                        return SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: isSync
+                                ? null
+                                : () async {
                                     await ref
                                         .read(syncNotifierProvider.notifier)
                                         .syncNow();
                                     if (context.mounted) {
-                                      final finalState =
-                                          ref.read(syncNotifierProvider);
+                                      final s = ref.read(syncNotifierProvider);
                                       ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            finalState.error != null
-                                                ? 'Lỗi đồng bộ: ${finalState.error}'
-                                                : 'Đồng bộ thành công!',
-                                          ),
-                                          backgroundColor:
-                                              finalState.error != null
-                                                  ? theme.colorScheme.error
-                                                  : const Color(0xFF10B981),
-                                          behavior: SnackBarBehavior.floating,
+                                          .showSnackBar(SnackBar(
+                                        content: Text(
+                                          s.error != null
+                                              ? 'Lỗi đồng bộ: ${s.error}'
+                                              : '✅ Đồng bộ thành công!',
                                         ),
-                                      );
+                                        backgroundColor: s.error != null
+                                            ? theme.colorScheme.error
+                                            : const Color(0xFF10B981),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                      ));
                                     }
                                   },
-                                  icon: const Icon(Icons.sync),
-                                  label: const Text('Đồng bộ ngay'),
-                                );
-                        },
-                      ),
+                            icon: isSync
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.sync_rounded, size: 18),
+                            label: Text(isSync ? 'Đang đồng bộ…' : 'Đồng bộ ngay'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF3B82F6),
+                              side: BorderSide(
+                                  color: const Color(0xFF3B82F6)
+                                      .withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Giới thiệu Section
+              // ── About card ───────────────────────────────────────────────
               BentoCard(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SettingsSectionHeader(
-                      title: 'Giới thiệu',
+                    _SectionHeader(
                       icon: Icons.info_outline_rounded,
+                      label: 'Giới thiệu',
                       color: const Color(0xFF64748B),
                     ),
-                    const SizedBox(height: 16),
-                    const ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('SmartFinance SME'),
-                      subtitle: Text('Phiên bản 1.0.0\n© 2026 SmartFinance'),
+                    const SizedBox(height: 20),
+                    _InfoTile(
+                      label: 'Ứng dụng',
+                      value: 'SmartFinance SME',
+                      icon: Icons.auto_graph,
+                    ),
+                    const Divider(height: 24),
+                    _InfoTile(
+                      label: 'Phiên bản',
+                      value: '1.0.0',
+                      icon: Icons.tag_rounded,
+                    ),
+                    const Divider(height: 24),
+                    _InfoTile(
+                      label: 'Bản quyền',
+                      value: '© 2026 SmartFinance',
+                      icon: Icons.copyright_rounded,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
             ],
           ),
         ),
@@ -214,16 +369,14 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SettingsSectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
 
-  const _SettingsSectionHeader({
-    required this.title,
-    required this.icon,
-    required this.color,
-  });
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _SectionHeader(
+      {required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -233,17 +386,140 @@ class _SettingsSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 20),
         ),
         const SizedBox(width: 12),
         Text(
-          title,
+          label,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+
+  const _SettingsRow({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: iconBg.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: iconBg, size: 20),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+        ),
+        trailing,
+      ],
+    );
+  }
+}
+
+class _ThemePreviewChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ThemePreviewChip({
+    required this.label,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: isSelected
+              ? null
+              : Border.all(
+                  color: color.withValues(alpha: 0.3),
+                ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? Colors.white : color,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  const _InfoTile(
+      {required this.label, required this.value, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

@@ -340,12 +340,13 @@ class _CashFlowChartTile extends ConsumerWidget {
                             }
                             return SideTitleWidget(
                               meta: meta,
+                              space: 8,
                               child: Text(
                                 points[idx].label,
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   color: theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             );
@@ -383,7 +384,7 @@ class _CashFlowChartTile extends ConsumerWidget {
                           BarChartRodData(
                             toY: p.income.toDouble(),
                             color: const Color(0xFF10B981),
-                            width: 12,
+                            width: 14,
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(6),
                             ),
