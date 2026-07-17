@@ -47,7 +47,7 @@ class InvoicingScreen extends ConsumerWidget {
                       mobileColumns: 1,
                       tabletColumns: 2,
                       desktopColumns: 3,
-                      cellHeight: 140,
+                      cellHeight: 170,
                       spacing: 20,
                       children: [
                         // Stats row
@@ -135,11 +135,15 @@ class _OutstandingCard extends StatelessWidget {
                 size: 20,
               ),
               const SizedBox(width: 8),
-              Text(
-                '+12% so với tháng trước',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  '+12% so với tháng trước',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -173,13 +177,18 @@ class _OverdueCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Số tiền quá hạn',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'Số tiền quá hạn',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
             ],
           ),
@@ -194,11 +203,15 @@ class _OverdueCard extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              Text(
-                'Cần xử lý (4 hóa đơn)',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'Cần xử lý (4 hóa đơn)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

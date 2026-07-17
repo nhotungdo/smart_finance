@@ -21,7 +21,7 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -37,8 +37,11 @@ class LocalDatabase {
     }
     if (oldVersion < 4) {
       await _migrateEnumValues(db);
-      await _createIndexes(db);
     }
+    if (oldVersion < 5) {
+      await _deduplicateCategories(db);
+    }
+    await _createIndexes(db);
   }
 
   Future<void> _migrateEnumValues(Database db) async {
@@ -239,6 +242,50 @@ class LocalDatabase {
       ON transactions(invoice_id)
       WHERE invoice_id IS NOT NULL AND status = 'ACTIVE'
     ''');
+    await db.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS categories_company_name_type_active_idx
+      ON categories(
+        COALESCE(company_id, ''),
+        LOWER(TRIM(category_name)),
+        category_type
+      )
+      WHERE status = 'ACTIVE'
+    ''');
+  }
+
+  Future<void> _deduplicateCategories(Database db) async {
+    final rows = await db.query(
+      'categories',
+      where: "status = 'ACTIVE'",
+      orderBy: 'created_at ASC, category_id ASC',
+    );
+    final canonicalIds = <String, String>{};
+
+    for (final row in rows) {
+      final categoryId = row['category_id'] as String;
+      final companyId = row['company_id'] as String? ?? '';
+      final name = (row['category_name'] as String).trim().toLowerCase();
+      final type = (row['category_type'] as String).toUpperCase();
+      final key = '$companyId\u0000$name\u0000$type';
+      final canonicalId = canonicalIds[key];
+
+      if (canonicalId == null) {
+        canonicalIds[key] = categoryId;
+        continue;
+      }
+
+      await db.update(
+        'transactions',
+        {'category_id': canonicalId, 'is_synced': 0},
+        where: 'category_id = ?',
+        whereArgs: [categoryId],
+      );
+      await db.delete(
+        'categories',
+        where: 'category_id = ?',
+        whereArgs: [categoryId],
+      );
+    }
   }
 
   Future<void> _createOcrResultsTable(Database db) async {

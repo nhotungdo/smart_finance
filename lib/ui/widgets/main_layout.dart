@@ -152,28 +152,36 @@ class _DesktopSidebar extends ConsumerWidget {
                       icon: Icons.dashboard_rounded,
                       label: 'Tổng quan',
                       isActive: currentIndex == 0,
-                      onTap: () => context.go('/dashboard'),
+                      onTap: currentIndex == 0
+                          ? null
+                          : () => context.go('/dashboard'),
                     ),
                     const SizedBox(height: 4),
                     _SidebarNavItem(
                       icon: Icons.receipt_long_rounded,
                       label: 'Hóa đơn',
                       isActive: currentIndex == 1,
-                      onTap: () => context.go('/invoicing'),
+                      onTap: currentIndex == 1
+                          ? null
+                          : () => context.go('/invoicing'),
                     ),
                     const SizedBox(height: 4),
                     _SidebarNavItem(
                       icon: Icons.payments_rounded,
                       label: 'Chi phí',
                       isActive: currentIndex == 2,
-                      onTap: () => context.go('/expenses'),
+                      onTap: currentIndex == 2
+                          ? null
+                          : () => context.go('/expenses'),
                     ),
                     const SizedBox(height: 4),
                     _SidebarNavItem(
                       icon: Icons.bar_chart_rounded,
                       label: 'Báo cáo',
                       isActive: currentIndex == 3,
-                      onTap: () => context.go('/reports'),
+                      onTap: currentIndex == 3
+                          ? null
+                          : () => context.go('/reports'),
                     ),
                   ],
                 ),
@@ -189,7 +197,9 @@ class _DesktopSidebar extends ConsumerWidget {
                     icon: Icons.settings_rounded,
                     label: 'Cài đặt',
                     isActive: currentIndex == 4,
-                    onTap: () => context.go('/settings'),
+                    onTap: currentIndex == 4
+                        ? null
+                        : () => context.go('/settings'),
                   ),
                   const SizedBox(height: 4),
                   _SidebarNavItem(
@@ -246,7 +256,7 @@ class _SidebarNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -328,31 +338,35 @@ class _MobileBottomNavigation extends StatelessWidget {
                 icon: Icons.dashboard_rounded,
                 label: 'Tổng quan',
                 isActive: currentIndex == 0,
-                onTap: () => context.go('/dashboard'),
+                onTap: currentIndex == 0
+                    ? null
+                    : () => context.go('/dashboard'),
               ),
               _BottomNavItem(
                 icon: Icons.receipt_long_rounded,
                 label: 'Hóa đơn',
                 isActive: currentIndex == 1,
-                onTap: () => context.go('/invoicing'),
+                onTap: currentIndex == 1
+                    ? null
+                    : () => context.go('/invoicing'),
               ),
               _BottomNavItem(
                 icon: Icons.payments_rounded,
                 label: 'Chi phí',
                 isActive: currentIndex == 2,
-                onTap: () => context.go('/expenses'),
+                onTap: currentIndex == 2 ? null : () => context.go('/expenses'),
               ),
               _BottomNavItem(
                 icon: Icons.bar_chart_rounded,
                 label: 'Báo cáo',
                 isActive: currentIndex == 3,
-                onTap: () => context.go('/reports'),
+                onTap: currentIndex == 3 ? null : () => context.go('/reports'),
               ),
               _BottomNavItem(
                 icon: Icons.settings_rounded,
                 label: 'Cài đặt',
                 isActive: currentIndex == 4,
-                onTap: () => context.go('/settings'),
+                onTap: currentIndex == 4 ? null : () => context.go('/settings'),
               ),
             ],
           ),
@@ -373,7 +387,7 @@ class _BottomNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

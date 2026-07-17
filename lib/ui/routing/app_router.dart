@@ -18,6 +18,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+Page<void> _shellPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
@@ -62,15 +66,18 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(
           path: '/dashboard',
-          builder: (context, state) => const DashboardScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const DashboardScreen()),
         ),
         GoRoute(
           path: '/expenses',
-          builder: (context, state) => const ExpensesScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const ExpensesScreen()),
         ),
         GoRoute(
           path: '/invoicing',
-          builder: (context, state) => const InvoicingScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const InvoicingScreen()),
         ),
         GoRoute(
           path: '/invoicing/create',
@@ -88,11 +95,13 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/reports',
-          builder: (context, state) => const ReportsScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const ReportsScreen()),
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const SettingsScreen()),
         ),
       ],
     ),

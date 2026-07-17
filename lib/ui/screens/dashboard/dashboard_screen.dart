@@ -90,7 +90,7 @@ class DashboardScreen extends ConsumerWidget {
                     mobileColumns: 2,
                     tabletColumns: 3,
                     desktopColumns: 3,
-                    cellHeight: 140,
+                    cellHeight: 180,
                     spacing: 16,
                     children: [
                       // ── Stats Row ──────────────────────────────────────

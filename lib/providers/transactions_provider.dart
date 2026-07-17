@@ -92,3 +92,28 @@ final transactionsProvider =
     AsyncNotifierProvider<TransactionsNotifier, List<TransactionModel>>(
       TransactionsNotifier.new,
     );
+
+final allTransactionsProvider = FutureProvider<List<TransactionModel>>((ref) async {
+  await ref.watch(transactionsProvider.future);
+  final profile = await ref.watch(currentUserProfileProvider.future);
+  final companyId = profile?.companyId;
+  if (companyId == null) return [];
+  return ref
+      .read(transactionRepositoryProvider)
+      .getRecentTransactions(companyId: companyId, limit: null);
+});
+
+final transactionDetailProvider = FutureProvider.autoDispose
+    .family<TransactionModel?, String>((ref, transactionId) async {
+      final cachedTransactions = ref.watch(transactionsProvider).value ?? [];
+      for (final transaction in cachedTransactions) {
+        if (transaction.transactionId == transactionId) return transaction;
+      }
+
+      final profile = await ref.watch(currentUserProfileProvider.future);
+      final companyId = profile?.companyId;
+      if (companyId == null) return null;
+      return ref
+          .read(transactionRepositoryProvider)
+          .getTransactionById(transactionId, companyId: companyId);
+    });

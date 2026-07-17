@@ -109,3 +109,11 @@ CREATE TABLE public.pdf_exports (
     file_path TEXT NOT NULL,
     exported_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX categories_company_name_type_active_idx
+ON public.categories (
+    COALESCE(company_id::text, ''),
+    LOWER(BTRIM(category_name)),
+    category_type
+)
+WHERE status = 'ACTIVE';

@@ -40,7 +40,7 @@ class ExpensesScreen extends ConsumerWidget {
                       mobileColumns: 2,
                       tabletColumns: 3,
                       desktopColumns: 3,
-                      cellHeight: 130,
+                      cellHeight: 160,
                       spacing: 16,
                       children: [
                         BentoItem(colSpan: 2, rowSpan: 2, child: _BudgetCard()),
@@ -73,7 +73,7 @@ class ExpensesScreen extends ConsumerWidget {
                       mobileColumns: 2,
                       tabletColumns: 3,
                       desktopColumns: 3,
-                      cellHeight: 130,
+                      cellHeight: 160,
                       spacing: 16,
                       children: [
                         // R0, C0 (Span 1x2) -> Budget
@@ -104,7 +104,7 @@ class ExpensesScreen extends ConsumerWidget {
                     mobileColumns: 2,
                     tabletColumns: 3,
                     desktopColumns: 3,
-                    cellHeight: 140,
+                    cellHeight: 160,
                     spacing: 20,
                     children: [
                       // R0, C0 (Span 1x2) -> Budget
@@ -217,9 +217,10 @@ class _BudgetCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               Text(
                 '4.250k',
@@ -228,7 +229,6 @@ class _BudgetCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 4),
               Text(
                 'đã tiêu',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -253,18 +253,28 @@ class _BudgetCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Còn lại 2.250k',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  'Còn lại 2.250k',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              Text(
-                'Tổng 6.500k',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Tổng 6.500k',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -281,6 +291,7 @@ class _ScanActionCard extends StatelessWidget {
     final theme = Theme.of(context);
     return BentoCard(
       onTap: () {},
+      padding: const EdgeInsets.all(16),
       accentColor: theme.colorScheme.primary,
       gradient: LinearGradient(
         colors: [
@@ -302,6 +313,9 @@ class _ScanActionCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Quét biên lai',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onPrimary,
                 fontWeight: FontWeight.bold,

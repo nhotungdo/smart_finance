@@ -18,11 +18,10 @@ final invoicesProvider =
     });
 
 class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
-  late final InvoiceRepository _repository;
+  InvoiceRepository get _repository => ref.read(invoiceRepositoryProvider);
 
   @override
   FutureOr<List<InvoiceModel>> build() async {
-    _repository = ref.read(invoiceRepositoryProvider);
     return _fetchInvoices();
   }
 

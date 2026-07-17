@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
-import 'package:smart_finance/ui/widgets/bento_grid.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 import 'package:smart_finance/providers/reports_provider.dart';
 import 'package:smart_finance/data/models/report_model.dart';
@@ -21,7 +20,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.sizeOf(context).width > 768;
+    final isDesktop = MediaQuery.sizeOf(context).width > 900;
     final reportState = ref.watch(reportsProvider);
     final selectedPeriod = ref.watch(reportPeriodProvider);
 
@@ -97,12 +96,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                       return KeyedSubtree(
                         key: ValueKey('data-${reportExt.period.name}'),
-                        child: BentoGrid(
-                          children: [
-                            BentoItem(colSpan: 2, child: barChart),
-                            BentoItem(colSpan: 1, child: pieChart),
-                            BentoItem(colSpan: 3, child: summaryTable),
-                          ],
+                        child: _buildReportContent(
+                          barChart: barChart,
+                          pieChart: pieChart,
+                          summaryTable: summaryTable,
                         ),
                       );
                     },
@@ -116,27 +113,76 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  Widget _buildReportContent({
+    required Widget barChart,
+    required Widget pieChart,
+    required Widget summaryTable,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showChartsSideBySide = constraints.maxWidth >= 960;
+        final chartHeight = showChartsSideBySide ? 380.0 : 360.0;
+
+        final charts = showChartsSideBySide
+            ? SizedBox(
+                height: chartHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 2, child: RepaintBoundary(child: barChart)),
+                    const SizedBox(width: 16),
+                    Expanded(child: RepaintBoundary(child: pieChart)),
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: chartHeight,
+                    child: RepaintBoundary(child: barChart),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: chartHeight,
+                    child: RepaintBoundary(child: pieChart),
+                  ),
+                ],
+              );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [charts, const SizedBox(height: 16), summaryTable],
+        );
+      },
+    );
+  }
+
   Widget _buildToggle(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleBtn(
-            title: 'Dòng tiền',
-            isSelected: _isCashFlow,
-            onTap: () => setState(() => _isCashFlow = true),
-          ),
-          _ToggleBtn(
-            title: 'Cân đối kế toán',
-            isSelected: !_isCashFlow,
-            onTap: () => setState(() => _isCashFlow = false),
-          ),
-        ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ToggleBtn(
+              title: 'Dòng tiền',
+              isSelected: _isCashFlow,
+              onTap: () => setState(() => _isCashFlow = true),
+            ),
+            _ToggleBtn(
+              title: 'Cân đối kế toán',
+              isSelected: !_isCashFlow,
+              onTap: () => setState(() => _isCashFlow = false),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -664,16 +710,13 @@ class _BarChartWidget extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 56,
+              reservedSize: 60,
               getTitlesWidget: (v, meta) {
                 if (v == 0) return const SizedBox.shrink();
                 return SideTitleWidget(
                   meta: meta,
                   child: Text(
-                    NumberFormat.compactCurrency(
-                      locale: 'vi_VN',
-                      symbol: '₫',
-                    ).format(v),
+                    NumberFormat.compact(locale: 'vi_VN').format(v),
                     style: TextStyle(
                       fontSize: 9,
                       color: theme.colorScheme.onSurfaceVariant,

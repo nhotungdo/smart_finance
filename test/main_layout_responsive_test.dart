@@ -41,6 +41,7 @@ void main() {
 
     for (final size in const [
       Size(390, 844),
+      Size(844, 390),
       Size(1200, 800),
       Size(600, 900),
       Size(1280, 720),

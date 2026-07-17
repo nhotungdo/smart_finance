@@ -38,23 +38,42 @@ class BentoCard extends StatefulWidget {
 
 class _BentoCardState extends State<BentoCard>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnim;
+  AnimationController? _controller;
+  Animation<double>? _scaleAnim;
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _configureInteractionAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant BentoCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((oldWidget.onTap == null) != (widget.onTap == null)) {
+      _controller?.dispose();
+      _controller = null;
+      _scaleAnim = null;
+      _configureInteractionAnimation();
+    }
+  }
+
+  void _configureInteractionAnimation() {
+    if (widget.onTap == null) return;
+    final controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.98).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    _controller = controller;
+    _scaleAnim = Tween<double>(
+      begin: 1.0,
+      end: 0.98,
+    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeOutCubic));
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -63,7 +82,8 @@ class _BentoCardState extends State<BentoCard>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final bg = widget.backgroundColor ??
+    final bg =
+        widget.backgroundColor ??
         (isDark
             ? const Color(0xFF1E293B) // slate-800
             : Colors.white);
@@ -85,8 +105,9 @@ class _BentoCardState extends State<BentoCard>
           borderRadius: BorderRadius.circular(widget.borderRadius),
           border: Border.all(
             color: widget.style == BentoCardStyle.outlined
-                ? (widget.accentColor ?? theme.colorScheme.primary)
-                    .withValues(alpha: 0.4)
+                ? (widget.accentColor ?? theme.colorScheme.primary).withValues(
+                    alpha: 0.4,
+                  )
                 : borderColor,
             width: widget.style == BentoCardStyle.outlined ? 1.5 : 1,
           ),
@@ -141,23 +162,23 @@ class _BentoCardState extends State<BentoCard>
     );
 
     if (widget.onTap == null) return content;
+    final controller = _controller!;
+    final scaleAnimation = _scaleAnim!;
 
     return MouseRegion(
-      onEnter: (_) => _controller.forward(),
-      onExit: (_) => _controller.reverse(),
+      onEnter: (_) => controller.forward(),
+      onExit: (_) => controller.reverse(),
       child: GestureDetector(
-        onTapDown: (_) => _controller.forward(),
+        onTapDown: (_) => controller.forward(),
         onTapUp: (_) {
-          _controller.reverse();
+          controller.reverse();
           widget.onTap?.call();
         },
-        onTapCancel: () => _controller.reverse(),
+        onTapCancel: controller.reverse,
         child: AnimatedBuilder(
-          animation: _controller,
-          builder: (_, child) => Transform.scale(
-            scale: _scaleAnim.value,
-            child: child,
-          ),
+          animation: controller,
+          builder: (_, child) =>
+              Transform.scale(scale: scaleAnimation.value, child: child),
           child: content,
         ),
       ),
@@ -166,8 +187,8 @@ class _BentoCardState extends State<BentoCard>
 }
 
 enum BentoCardStyle {
-  solid,    // Filled background (default)
-  ghost,    // Transparent — no bg, no shadow
+  solid, // Filled background (default)
+  ghost, // Transparent — no bg, no shadow
   outlined, // Transparent bg + colored border
 }
 
@@ -207,10 +228,7 @@ class BentoIconTile extends StatelessWidget {
               ),
               child: Icon(icon, color: accentColor, size: 20),
             ),
-            if (trailing != null) ...[
-              const Spacer(),
-              trailing!,
-            ],
+            if (trailing != null) ...[const Spacer(), trailing!],
           ],
         ),
         const SizedBox(height: 12),

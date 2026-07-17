@@ -238,6 +238,52 @@ CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_active_invoice_idx
 ON public.transactions(invoice_id)
 WHERE invoice_id IS NOT NULL AND status = 'ACTIVE';
 
+-- Merge legacy duplicate categories before enforcing semantic uniqueness.
+WITH ranked_categories AS (
+  SELECT
+    category_id,
+    FIRST_VALUE(category_id) OVER (
+      PARTITION BY
+        COALESCE(company_id, ''),
+        LOWER(BTRIM(category_name)),
+        category_type
+      ORDER BY created_at NULLS LAST, category_id
+    ) AS canonical_id
+  FROM public.categories
+  WHERE status = 'ACTIVE'
+)
+UPDATE public.transactions AS tx
+SET category_id = ranked.canonical_id
+FROM ranked_categories AS ranked
+WHERE tx.category_id = ranked.category_id
+  AND ranked.category_id <> ranked.canonical_id;
+
+WITH ranked_categories AS (
+  SELECT
+    category_id,
+    FIRST_VALUE(category_id) OVER (
+      PARTITION BY
+        COALESCE(company_id, ''),
+        LOWER(BTRIM(category_name)),
+        category_type
+      ORDER BY created_at NULLS LAST, category_id
+    ) AS canonical_id
+  FROM public.categories
+  WHERE status = 'ACTIVE'
+)
+DELETE FROM public.categories AS category
+USING ranked_categories AS ranked
+WHERE category.category_id = ranked.category_id
+  AND ranked.category_id <> ranked.canonical_id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_company_name_type_active_idx
+ON public.categories (
+  COALESCE(company_id, ''),
+  LOWER(BTRIM(category_name)),
+  category_type
+)
+WHERE status = 'ACTIVE';
+
 -- Create company/profile in the same database transaction as Supabase Auth.
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS trigger

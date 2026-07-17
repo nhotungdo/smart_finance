@@ -5,7 +5,11 @@ import 'package:uuid/uuid.dart';
 import 'package:sqflite/sqflite.dart';
 
 class TransactionRepository {
-  final LocalDatabase _db = LocalDatabase.instance;
+  TransactionRepository({Future<Database> Function()? databaseProvider})
+    : _databaseProvider =
+          databaseProvider ?? (() => LocalDatabase.instance.database);
+
+  final Future<Database> Function() _databaseProvider;
   final _uuid = const Uuid();
 
   Future<String> addTransaction({
@@ -22,7 +26,7 @@ class TransactionRepository {
     if (amount <= 0) {
       throw ArgumentError.value(amount, 'amount', 'Số tiền phải lớn hơn 0');
     }
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final now = DateTime.now();
     final transactionId = _uuid.v4();
 
@@ -49,9 +53,9 @@ class TransactionRepository {
 
   Future<List<TransactionModel>> getRecentTransactions({
     String? companyId,
-    int limit = 50,
+    int? limit = 50,
   }) async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final result = await db.query(
       'transactions',
       where: companyId != null ? 'company_id = ? AND status = ?' : 'status = ?',
@@ -65,12 +69,35 @@ class TransactionRepository {
     return result.map((e) => TransactionModel.fromMap(e)).toList();
   }
 
+  Future<TransactionModel?> getTransactionById(
+    String transactionId, {
+    String? companyId,
+  }) async {
+    final db = await _databaseProvider();
+    final result = await db.query(
+      'transactions',
+      where: companyId == null
+          ? 'transaction_id = ? AND status = ?'
+          : 'transaction_id = ? AND company_id = ? AND status = ?',
+      whereArgs: companyId == null
+          ? [transactionId, RecordStatus.active.databaseValue]
+          : [
+              transactionId,
+              companyId,
+              RecordStatus.active.databaseValue,
+            ],
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return TransactionModel.fromMap(result.first);
+  }
+
   Future<List<TransactionModel>> getTransactionsByDateRange(
     DateTime start,
     DateTime end, {
     String? companyId,
   }) async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final result = await db.query(
       'transactions',
       where:
@@ -94,7 +121,7 @@ class TransactionRepository {
   }
 
   Future<void> deleteTransaction(String transactionId) async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final affectedRows = await db.update(
       'transactions',
       {
@@ -111,7 +138,7 @@ class TransactionRepository {
   }
 
   Future<bool> hasActiveTransactionForInvoice(String invoiceId) async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final rows = await db.query(
       'transactions',
       columns: ['transaction_id'],
@@ -125,14 +152,14 @@ class TransactionRepository {
   // --- Sync Methods ---
 
   Future<List<TransactionModel>> getUnsyncedTransactions() async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final result = await db.query('transactions', where: 'is_synced = 0');
     return result.map((e) => TransactionModel.fromMap(e)).toList();
   }
 
   Future<void> markAsSynced(List<String> ids) async {
     if (ids.isEmpty) return;
-    final db = await _db.database;
+    final db = await _databaseProvider();
     final placeholders = List.filled(ids.length, '?').join(',');
     await db.update(
       'transactions',
@@ -145,7 +172,7 @@ class TransactionRepository {
   Future<void> upsertTransactionFromCloud(
     TransactionModel cloudTransaction,
   ) async {
-    final db = await _db.database;
+    final db = await _databaseProvider();
 
     // Conflict resolution
     final localMaps = await db.query(

@@ -24,9 +24,9 @@ class CategoriesNotifier extends AsyncNotifier<List<CategoryModel>> {
       final profile = await ref.read(currentUserProfileProvider.future);
       final companyId = profile?.companyId;
       if (companyId == null) return [];
-      return ref
-          .read(categoryRepositoryProvider)
-          .getCategories(companyId: companyId);
+      final repo = ref.read(categoryRepositoryProvider);
+      await repo.seedDefaultCategories(companyId);
+      return repo.getCategories(companyId: companyId);
     });
   }
 }
