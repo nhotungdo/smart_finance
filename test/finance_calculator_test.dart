@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/transaction_model.dart';
+import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/domain/services/finance_calculator.dart';
 
 void main() {
@@ -82,5 +83,60 @@ void main() {
     expect(vat8.total, 1080000);
     expect(vat10.vatAmount, 100000);
     expect(vat10.total, 1100000);
+  });
+
+  test('splits an existing transaction total into subtotal and VAT', () {
+    final vat = FinanceCalculator.calculateVatFromTotal(
+      total: 1200000,
+      vatRate: 10,
+    );
+
+    expect(vat.subtotal, 1090909);
+    expect(vat.vatAmount, 109091);
+    expect(vat.total, 1200000);
+  });
+
+  test('invoice totals separate pre-tax amount and VAT by cash direction', () {
+    final now = DateTime(2026, 7, 17);
+    final invoices = [
+      InvoiceModel(
+        id: 'income-invoice',
+        companyId: 'company-1',
+        uploadedBy: 'user-1',
+        invoiceType: TransactionType.income,
+        subtotal: 1000000,
+        vatAmount: 100000,
+        totalAmount: 1100000,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      InvoiceModel(
+        id: 'expense-invoice',
+        companyId: 'company-1',
+        uploadedBy: 'user-1',
+        invoiceType: TransactionType.expense,
+        subtotal: 500000,
+        vatAmount: 40000,
+        totalAmount: 540000,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ];
+
+    final income = FinanceCalculator.invoiceTotals(
+      invoices,
+      TransactionType.income,
+    );
+    final expense = FinanceCalculator.invoiceTotals(
+      invoices,
+      TransactionType.expense,
+    );
+
+    expect(income.subtotal, 1000000);
+    expect(income.vat, 100000);
+    expect(income.total, 1100000);
+    expect(expense.subtotal, 500000);
+    expect(expense.vat, 40000);
+    expect(expense.total, 540000);
   });
 }

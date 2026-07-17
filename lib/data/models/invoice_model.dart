@@ -6,6 +6,7 @@ class InvoiceModel {
   final String id;
   final String companyId;
   final String uploadedBy;
+  final TransactionType invoiceType;
   final String? supplierName;
   final String? supplierTaxCode;
   final String? invoiceNumber;
@@ -24,6 +25,7 @@ class InvoiceModel {
     required this.id,
     required this.companyId,
     required this.uploadedBy,
+    this.invoiceType = TransactionType.expense,
     this.supplierName,
     this.supplierTaxCode,
     this.invoiceNumber,
@@ -43,6 +45,7 @@ class InvoiceModel {
     String? id,
     String? companyId,
     String? uploadedBy,
+    TransactionType? invoiceType,
     String? supplierName,
     String? supplierTaxCode,
     String? invoiceNumber,
@@ -61,6 +64,7 @@ class InvoiceModel {
       id: id ?? this.id,
       companyId: companyId ?? this.companyId,
       uploadedBy: uploadedBy ?? this.uploadedBy,
+      invoiceType: invoiceType ?? this.invoiceType,
       supplierName: supplierName ?? this.supplierName,
       supplierTaxCode: supplierTaxCode ?? this.supplierTaxCode,
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
@@ -82,6 +86,7 @@ class InvoiceModel {
       'invoice_id': id,
       'company_id': companyId,
       'uploaded_by': uploadedBy,
+      'invoice_type': invoiceType.databaseValue,
       'supplier_name': supplierName,
       'supplier_tax_code': supplierTaxCode,
       'invoice_number': invoiceNumber,
@@ -103,6 +108,9 @@ class InvoiceModel {
       id: map['invoice_id'] ?? '',
       companyId: map['company_id'] ?? '',
       uploadedBy: map['uploaded_by'] ?? '',
+      invoiceType: TransactionType.fromDatabase(
+        map['invoice_type'] ?? TransactionType.expense.databaseValue,
+      ),
       supplierName: map['supplier_name'],
       supplierTaxCode: map['supplier_tax_code'],
       invoiceNumber: map['invoice_number'],

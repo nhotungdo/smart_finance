@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
+import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:smart_finance/data/services/receipt_image_store.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
@@ -12,7 +13,9 @@ import 'package:smart_finance/ui/widgets/smart_button.dart';
 import 'package:smart_finance/ui/widgets/smart_text_field.dart';
 
 class AddTransactionDialog extends ConsumerStatefulWidget {
-  const AddTransactionDialog({super.key});
+  const AddTransactionDialog({super.key, this.transaction});
+
+  final TransactionModel? transaction;
 
   @override
   ConsumerState<AddTransactionDialog> createState() =>
@@ -30,6 +33,23 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
   Uint8List? _receiptBytes;
   String? _receiptName;
   bool _isSaving = false;
+  String? _existingReceiptPath;
+
+  bool get _isEditing => widget.transaction != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final transaction = widget.transaction;
+    if (transaction != null) {
+      _amountController.text = transaction.amount.toString();
+      _descriptionController.text = transaction.description ?? '';
+      _transactionType = transaction.transactionType;
+      _selectedCategoryId = transaction.categoryId;
+      _selectedDate = transaction.transactionDate;
+      _existingReceiptPath = transaction.receiptImagePath;
+    }
+  }
 
   @override
   void dispose() {
@@ -121,18 +141,31 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                 _receiptBytes!,
                 _receiptName ?? 'receipt.jpg',
               );
-        await ref
-            .read(transactionsProvider.notifier)
-            .addTransaction(
+        final description = _descriptionController.text.isNotEmpty
+            ? _descriptionController.text
+            : null;
+        final notifier = ref.read(transactionsProvider.notifier);
+        if (_isEditing) {
+          await notifier.updateTransaction(
+            widget.transaction!.copyWith(
               amount: amount,
               transactionType: _transactionType,
               transactionDate: _selectedDate,
               categoryId: _selectedCategoryId,
-              description: _descriptionController.text.isNotEmpty
-                  ? _descriptionController.text
-                  : null,
-              receiptImagePath: receiptImagePath,
-            );
+              description: description,
+              receiptImagePath: receiptImagePath ?? _existingReceiptPath,
+            ),
+          );
+        } else {
+          await notifier.addTransaction(
+            amount: amount,
+            transactionType: _transactionType,
+            transactionDate: _selectedDate,
+            categoryId: _selectedCategoryId,
+            description: description,
+            receiptImagePath: receiptImagePath,
+          );
+        }
         if (mounted) Navigator.of(context).pop();
       } catch (error) {
         if (!mounted) return;
@@ -169,7 +202,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Thêm giao dịch mới',
+                    _isEditing ? 'Sửa giao dịch' : 'Thêm giao dịch mới',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
@@ -406,8 +439,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text(
-                                'Lưu giao dịch',
+                            : Text(
+                                _isEditing ? 'Lưu thay đổi' : 'Lưu giao dịch',
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                       ),

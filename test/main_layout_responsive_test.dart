@@ -34,10 +34,30 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            final isLandscape = mediaQuery.size.width > mediaQuery.size.height;
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: const TextScaler.linear(1.3),
+                padding: isLandscape
+                    ? const EdgeInsets.symmetric(horizontal: 44)
+                    : mediaQuery.padding,
+              ),
+              child: child!,
+            );
+          },
+        ),
       ),
     );
     await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Initial desktop layout overflowed',
+    );
 
     for (final size in const [
       Size(390, 844),
@@ -45,10 +65,13 @@ void main() {
       Size(1200, 800),
       Size(600, 900),
       Size(1280, 720),
+      Size(1280, 560),
+      Size(1330, 589),
     ]) {
       await tester.binding.setSurfaceSize(size);
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
+      final layoutError = tester.takeException();
+      expect(layoutError, isNull, reason: 'Main layout overflowed at $size');
       expect(find.text('Responsive content'), findsOneWidget);
     }
   });

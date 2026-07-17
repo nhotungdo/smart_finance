@@ -53,6 +53,10 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
     // Refresh list
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(_fetchTransactions);
+    ref.invalidate(allTransactionsProvider);
+    if (invoiceId != null) {
+      ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
+    }
   }
 
   Future<void> deleteTransaction(String transactionId) async {
@@ -61,9 +65,38 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
         .deleteTransaction(transactionId);
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(_fetchTransactions);
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(transactionDetailProvider(transactionId));
   }
 
-  Future<void> createExpenseFromInvoice({
+  Future<void> updateTransaction(TransactionModel transaction) async {
+    await ref
+        .read(transactionRepositoryProvider)
+        .updateTransaction(transaction);
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(_fetchTransactions);
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(transactionDetailProvider(transaction.transactionId));
+  }
+
+  Future<void> linkInvoiceToTransaction({
+    required String transactionId,
+    required String invoiceId,
+  }) async {
+    await ref
+        .read(transactionRepositoryProvider)
+        .linkInvoiceToTransaction(
+          transactionId: transactionId,
+          invoiceId: invoiceId,
+        );
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(_fetchTransactions);
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(transactionDetailProvider(transactionId));
+    ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
+  }
+
+  Future<void> createTransactionFromInvoice({
     required InvoiceModel invoice,
     required String categoryId,
   }) async {
@@ -79,10 +112,11 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
 
     await addTransaction(
       amount: amount,
-      transactionType: TransactionType.expense,
+      transactionType: invoice.invoiceType,
       transactionDate: invoice.invoiceDate ?? DateTime.now(),
       categoryId: categoryId,
-      description: 'Chi phí hóa đơn ${invoice.invoiceNumber ?? invoice.id}',
+      description:
+          '${invoice.invoiceType == TransactionType.income ? 'Thu' : 'Chi'} hóa đơn ${invoice.invoiceNumber ?? invoice.id}',
       invoiceId: invoice.id,
     );
   }
@@ -93,7 +127,9 @@ final transactionsProvider =
       TransactionsNotifier.new,
     );
 
-final allTransactionsProvider = FutureProvider<List<TransactionModel>>((ref) async {
+final allTransactionsProvider = FutureProvider<List<TransactionModel>>((
+  ref,
+) async {
   await ref.watch(transactionsProvider.future);
   final profile = await ref.watch(currentUserProfileProvider.future);
   final companyId = profile?.companyId;
@@ -116,4 +152,12 @@ final transactionDetailProvider = FutureProvider.autoDispose
       return ref
           .read(transactionRepositoryProvider)
           .getTransactionById(transactionId, companyId: companyId);
+    });
+
+final linkedTransactionForInvoiceProvider = FutureProvider.autoDispose
+    .family<TransactionModel?, String>((ref, invoiceId) async {
+      await ref.watch(transactionsProvider.future);
+      return ref
+          .read(transactionRepositoryProvider)
+          .getActiveTransactionForInvoice(invoiceId);
     });

@@ -52,6 +52,8 @@ CREATE TABLE public.invoices (
     invoice_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID REFERENCES public.companies(company_id),
     uploaded_by UUID REFERENCES public.users(user_id),
+    invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+        CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
     supplier_name TEXT,
     supplier_tax_code TEXT,
     invoice_number TEXT,
@@ -117,3 +119,7 @@ ON public.categories (
     category_type
 )
 WHERE status = 'ACTIVE';
+
+CREATE UNIQUE INDEX transactions_one_active_invoice_idx
+ON public.transactions(invoice_id)
+WHERE invoice_id IS NOT NULL AND status = 'ACTIVE';

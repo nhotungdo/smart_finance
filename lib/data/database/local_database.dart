@@ -21,7 +21,7 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -40,6 +40,13 @@ class LocalDatabase {
     }
     if (oldVersion < 5) {
       await _deduplicateCategories(db);
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        ALTER TABLE invoices
+        ADD COLUMN invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+          CHECK (invoice_type IN ('INCOME', 'EXPENSE'))
+      ''');
     }
     await _createIndexes(db);
   }
@@ -191,6 +198,8 @@ class LocalDatabase {
         invoice_id TEXT PRIMARY KEY,
         company_id TEXT REFERENCES companies(company_id),
         uploaded_by TEXT REFERENCES users(user_id),
+        invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+          CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
         supplier_name TEXT,
         supplier_tax_code TEXT,
         invoice_number TEXT,

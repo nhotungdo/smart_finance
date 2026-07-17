@@ -248,7 +248,7 @@ class _WideSplash extends StatelessWidget {
                   theme: theme,
                   icon: Icons.bar_chart_rounded,
                   label: 'Báo cáo thời gian thực',
-                  sublabel: 'P&L, dòng tiền, cân đối',
+                  sublabel: 'P&L, dòng tiền, hóa đơn',
                   color: const Color(0xFF6C63FF),
                 ),
                 const SizedBox(height: 16),

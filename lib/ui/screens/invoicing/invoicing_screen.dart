@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/bento_grid.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
-import 'package:smart_finance/ui/widgets/smart_button.dart';
 import 'package:smart_finance/ui/widgets/smart_text_field.dart';
 import 'package:smart_finance/providers/invoices_provider.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
@@ -99,10 +98,16 @@ class InvoicingScreen extends ConsumerWidget {
 
 // ─── Cards ───────────────────────────────────────────────────────────────────
 
-class _OutstandingCard extends StatelessWidget {
+class _OutstandingCard extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final summary = ref.watch(invoiceSummaryProvider);
+    final currency = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    );
     return BentoCard(
       showAccentStrip: true,
       accentColor: theme.colorScheme.primary,
@@ -112,32 +117,36 @@ class _OutstandingCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Tổng chưa thanh toán',
+            'Tổng giá trị hóa đơn',
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            '45.230k ₫',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              currency.format(summary.totalValue),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const Spacer(),
           Row(
             children: [
               Icon(
-                Icons.trending_up_rounded,
+                Icons.receipt_long_outlined,
                 color: theme.colorScheme.secondary,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '+12% so với tháng trước',
+                  '${summary.invoiceCount} hóa đơn',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelMedium?.copyWith(
@@ -154,21 +163,20 @@ class _OutstandingCard extends StatelessWidget {
   }
 }
 
-class _OverdueCard extends StatelessWidget {
+class _OverdueCard extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final summary = ref.watch(invoiceSummaryProvider);
+    const pendingColor = Color(0xFFF59E0B);
+    final currency = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    );
     return BentoCard(
       showAccentStrip: true,
-      accentColor: theme.colorScheme.error,
-      gradient: LinearGradient(
-        colors: [
-          theme.colorScheme.error.withValues(alpha: 0.1),
-          theme.colorScheme.error.withValues(alpha: 0.0),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      accentColor: pendingColor,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,25 +187,29 @@ class _OverdueCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Số tiền quá hạn',
+                  'Đang chờ xử lý',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.error,
+                    color: pendingColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+              const Icon(Icons.pending_actions_rounded, color: pendingColor),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            '8.450k ₫',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: theme.colorScheme.error,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              currency.format(summary.pendingValue),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: pendingColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const Spacer(),
@@ -205,11 +217,11 @@ class _OverdueCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Cần xử lý (4 hóa đơn)',
+                  '${summary.pendingCount} hóa đơn chưa hoàn tất',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.error,
+                    color: pendingColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -280,7 +292,7 @@ class _InvoiceListCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(24.0),
             child: BentoSectionHeader(
-              title: 'Hóa đơn gần đây',
+              title: 'Danh sách hóa đơn',
               action: Row(
                 children: [
                   IconButton(
@@ -439,19 +451,6 @@ class _InvoiceListCard extends ConsumerWidget {
               },
             ),
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Center(
-              child: SmartButton.text(
-                onPressed: () {},
-                child: const Text(
-                  'Xem tất cả hóa đơn',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -516,10 +515,12 @@ class _InvoiceListCard extends ConsumerWidget {
                   onPressed: () => _exportInvoice(context, ref, invoice),
                 ),
                 IconButton(
-                  tooltip: 'Tạo chi phí',
+                  tooltip: invoice.invoiceType == TransactionType.income
+                      ? 'Tạo khoản thu'
+                      : 'Tạo chi phí',
                   icon: const Icon(Icons.add_card_rounded),
                   onPressed: () =>
-                      _createExpenseFromInvoice(context, ref, invoice),
+                      _createTransactionFromInvoice(context, ref, invoice),
                 ),
               ],
             ),
@@ -548,42 +549,52 @@ class _InvoiceListCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  client,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    client,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 _buildStatusBadge(theme, status),
               ],
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      id,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontFamily: 'Inter',
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        id,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      date,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      Text(
+                        date,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
+                const SizedBox(width: 12),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
                       amount,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontFamily: 'Inter',
@@ -591,20 +602,42 @@ class _InvoiceListCard extends ConsumerWidget {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Xuất PDF',
-                      onPressed: () => _exportInvoice(context, ref, invoice),
-                      icon: const Icon(Icons.picture_as_pdf_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Tạo chi phí',
-                      onPressed: () =>
-                          _createExpenseFromInvoice(context, ref, invoice),
-                      icon: const Icon(Icons.add_card_rounded),
-                    ),
-                  ],
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Xuất PDF',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 40,
+                      height: 40,
+                    ),
+                    onPressed: () => _exportInvoice(context, ref, invoice),
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: invoice.invoiceType == TransactionType.income
+                        ? 'Tạo khoản thu'
+                        : 'Tạo chi phí',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 40,
+                      height: 40,
+                    ),
+                    onPressed: () =>
+                        _createTransactionFromInvoice(context, ref, invoice),
+                    icon: const Icon(Icons.add_card_rounded),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -612,34 +645,41 @@ class _InvoiceListCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _createExpenseFromInvoice(
+  Future<void> _createTransactionFromInvoice(
     BuildContext context,
     WidgetRef ref,
     InvoiceModel invoice,
   ) async {
     final categories = await ref.read(categoriesProvider.future);
-    final expenseCategories = categories
-        .where((category) => category.categoryType == TransactionType.expense)
+    final matchingCategories = categories
+        .where((category) => category.categoryType == invoice.invoiceType)
         .toList();
+    final isIncome = invoice.invoiceType == TransactionType.income;
 
     if (!context.mounted) return;
-    if (expenseCategories.isEmpty) {
+    if (matchingCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa có danh mục chi phí.')),
+        SnackBar(
+          content: Text(
+            'Chưa có danh mục ${isIncome ? 'khoản thu' : 'chi phí'}.',
+          ),
+        ),
       );
       return;
     }
 
-    var selectedCategoryId = expenseCategories.first.categoryId;
+    var selectedCategoryId = matchingCategories.first.categoryId;
     final categoryId = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Tạo chi phí từ hóa đơn'),
+          title: Text('Tạo ${isIncome ? 'khoản thu' : 'chi phí'} từ hóa đơn'),
           content: DropdownButtonFormField<String>(
             initialValue: selectedCategoryId,
-            decoration: const InputDecoration(labelText: 'Danh mục chi phí'),
-            items: expenseCategories
+            decoration: InputDecoration(
+              labelText: 'Danh mục ${isIncome ? 'thu' : 'chi'}',
+            ),
+            items: matchingCategories
                 .map(
                   (category) => DropdownMenuItem(
                     value: category.categoryId,
@@ -661,7 +701,7 @@ class _InvoiceListCard extends ConsumerWidget {
             FilledButton(
               onPressed: () =>
                   Navigator.of(dialogContext).pop(selectedCategoryId),
-              child: const Text('Tạo chi phí'),
+              child: Text(isIncome ? 'Tạo khoản thu' : 'Tạo chi phí'),
             ),
           ],
         ),
@@ -672,10 +712,15 @@ class _InvoiceListCard extends ConsumerWidget {
     try {
       await ref
           .read(transactionsProvider.notifier)
-          .createExpenseFromInvoice(invoice: invoice, categoryId: categoryId);
+          .createTransactionFromInvoice(
+            invoice: invoice,
+            categoryId: categoryId,
+          );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã tạo giao dịch chi phí.')),
+        SnackBar(
+          content: Text('Đã tạo giao dịch ${isIncome ? 'thu' : 'chi'}.'),
+        ),
       );
     } catch (error) {
       if (!context.mounted) return;
@@ -716,13 +761,15 @@ class _InvoiceListCard extends ConsumerWidget {
         : const Color(0xFFF59E0B);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         status,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: theme.textTheme.labelSmall?.copyWith(
           color: textColor,
           fontWeight: FontWeight.bold,

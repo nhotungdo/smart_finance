@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smart_finance/data/models/category_model.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
@@ -43,19 +44,13 @@ class ExpensesScreen extends ConsumerWidget {
                       cellHeight: 160,
                       spacing: 16,
                       children: [
-                        BentoItem(colSpan: 2, rowSpan: 2, child: _BudgetCard()),
-                        BentoItem(
-                          colSpan: 1,
-                          rowSpan: 1,
-                          child: _ScanActionCard(),
-                        ),
                         BentoItem(
                           colSpan: 1,
                           rowSpan: 1,
                           child: _QuickAddCard(),
                         ),
                         BentoItem(
-                          colSpan: 2,
+                          colSpan: 1,
                           rowSpan: 1,
                           child: _CsvUploadCard(),
                         ),
@@ -76,25 +71,20 @@ class ExpensesScreen extends ConsumerWidget {
                       cellHeight: 160,
                       spacing: 16,
                       children: [
-                        // R0, C0 (Span 1x2) -> Budget
-                        BentoItem(colSpan: 1, rowSpan: 2, child: _BudgetCard()),
-                        // R0, C1 (Span 2x4) -> List
                         BentoItem(
                           colSpan: 2,
                           rowSpan: 4,
                           child: _ExpensesListCard(isDesktop: false),
                         ),
-                        // R2, C0 (Span 1x1) -> Scan
-                        BentoItem(
-                          colSpan: 1,
-                          rowSpan: 1,
-                          child: _ScanActionCard(),
-                        ),
-                        // R3, C0 (Span 1x1) -> Row of Manual & CSV
                         BentoItem(
                           colSpan: 1,
                           rowSpan: 1,
                           child: _QuickAddCard(),
+                        ),
+                        BentoItem(
+                          colSpan: 1,
+                          rowSpan: 1,
+                          child: _CsvUploadCard(),
                         ),
                       ],
                     );
@@ -107,21 +97,11 @@ class ExpensesScreen extends ConsumerWidget {
                     cellHeight: 160,
                     spacing: 20,
                     children: [
-                      // R0, C0 (Span 1x2) -> Budget
-                      BentoItem(colSpan: 1, rowSpan: 2, child: _BudgetCard()),
-                      // R0, C1 (Span 2x4) -> List
                       BentoItem(
                         colSpan: 2,
                         rowSpan: 4,
                         child: _ExpensesListCard(isDesktop: true),
                       ),
-                      // R2, C0 (Span 1x1) -> Scan
-                      BentoItem(
-                        colSpan: 1,
-                        rowSpan: 1,
-                        child: _ScanActionCard(),
-                      ),
-                      // R3, C0 (Span 1x1) -> Row of Manual & CSV
                       BentoItem(
                         colSpan: 1,
                         rowSpan: 1,
@@ -195,138 +175,6 @@ Future<bool> _deleteTransactionAfterConfirmation(
 }
 
 // ─── Cards ───────────────────────────────────────────────────────────────────
-
-class _BudgetCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return BentoCard(
-      showAccentStrip: true,
-      accentColor: theme.colorScheme.primary,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Ngân sách tháng',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              Text(
-                '4.250k',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'đã tiêu',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: 0.65,
-              minHeight: 12,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Còn lại 2.250k',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Tổng 6.500k',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScanActionCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return BentoCard(
-      onTap: () {},
-      padding: const EdgeInsets.all(16),
-      accentColor: theme.colorScheme.primary,
-      gradient: LinearGradient(
-        colors: [
-          theme.colorScheme.primary,
-          theme.colorScheme.primary.withValues(alpha: 0.8),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.document_scanner_rounded,
-              size: 36,
-              color: theme.colorScheme.onPrimary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Quét biên lai',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _QuickAddCard extends StatelessWidget {
   @override
@@ -468,6 +316,7 @@ class _ExpensesListCard extends ConsumerWidget {
                 }
 
                 final categories = categoriesState.value ?? [];
+                final recentTransactions = transactions.take(5).toList();
 
                 if (isDesktop) {
                   return SingleChildScrollView(
@@ -476,6 +325,7 @@ class _ExpensesListCard extends ConsumerWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 600),
                         child: DataTable(
+                          showCheckboxColumn: false,
                           headingRowColor: WidgetStatePropertyAll(
                             theme.colorScheme.surfaceContainerHighest
                                 .withValues(alpha: 0.3),
@@ -514,7 +364,7 @@ class _ExpensesListCard extends ConsumerWidget {
                               ),
                             ),
                           ],
-                          rows: transactions.map((tx) {
+                          rows: recentTransactions.map((tx) {
                             CategoryModel? category;
                             for (final item in categories) {
                               if (item.categoryId == tx.categoryId) {
@@ -551,6 +401,8 @@ class _ExpensesListCard extends ConsumerWidget {
                                 : const Color(0xFF10B981);
 
                             return DataRow(
+                              onSelectChanged: (_) =>
+                                  context.push('/expenses/${tx.transactionId}'),
                               cells: [
                                 DataCell(
                                   Row(
@@ -649,10 +501,10 @@ class _ExpensesListCard extends ConsumerWidget {
                 } else {
                   return ListView.separated(
                     padding: EdgeInsets.zero,
-                    itemCount: transactions.length,
+                    itemCount: recentTransactions.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final tx = transactions[index];
+                      final tx = recentTransactions[index];
                       CategoryModel? category;
                       for (final item in categories) {
                         if (item.categoryId == tx.categoryId) {
@@ -715,7 +567,8 @@ class _ExpensesListCard extends ConsumerWidget {
                           return deleted;
                         },
                         child: InkWell(
-                          onTap: () {},
+                          onTap: () =>
+                              context.push('/expenses/${tx.transactionId}'),
                           child: Padding(
                             padding: const EdgeInsets.all(20.0),
                             child: Row(
@@ -811,7 +664,7 @@ class _ExpensesListCard extends ConsumerWidget {
             padding: const EdgeInsets.all(12.0),
             child: Center(
               child: SmartButton.text(
-                onPressed: () {},
+                onPressed: () => context.push('/expenses/history'),
                 child: const Text(
                   'Xem tất cả chi phí',
                   style: TextStyle(fontWeight: FontWeight.bold),

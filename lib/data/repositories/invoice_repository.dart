@@ -39,6 +39,21 @@ class InvoiceRepository {
     return InvoiceModel.fromMap(maps.first);
   }
 
+  Future<List<InvoiceModel>> getInvoicesByDateRange(
+    DateTime start,
+    DateTime end, {
+    required String companyId,
+  }) async {
+    final db = await _localDb.database;
+    final maps = await db.query(
+      'invoices',
+      where: 'company_id = ? AND invoice_date >= ? AND invoice_date <= ?',
+      whereArgs: [companyId, start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'invoice_date DESC',
+    );
+    return maps.map(InvoiceModel.fromMap).toList();
+  }
+
   Future<String> addInvoice(InvoiceModel invoice) async {
     final db = await _localDb.database;
     // 1. Save locally first (offline-first)

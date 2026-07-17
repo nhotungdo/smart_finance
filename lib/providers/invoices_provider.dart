@@ -17,6 +17,49 @@ final invoicesProvider =
       return InvoicesNotifier();
     });
 
+class InvoiceSummary {
+  const InvoiceSummary({
+    required this.totalValue,
+    required this.pendingValue,
+    required this.invoiceCount,
+    required this.pendingCount,
+  });
+
+  final int totalValue;
+  final int pendingValue;
+  final int invoiceCount;
+  final int pendingCount;
+
+  factory InvoiceSummary.fromInvoices(List<InvoiceModel> invoices) {
+    var totalValue = 0;
+    var pendingValue = 0;
+    var pendingCount = 0;
+
+    for (final invoice in invoices) {
+      final amount = invoice.totalAmount ?? 0;
+      final safeAmount = amount > 0 ? amount : 0;
+      totalValue += safeAmount;
+
+      if (invoice.scanStatus != InvoiceScanStatus.scanned) {
+        pendingValue += safeAmount;
+        pendingCount++;
+      }
+    }
+
+    return InvoiceSummary(
+      totalValue: totalValue,
+      pendingValue: pendingValue,
+      invoiceCount: invoices.length,
+      pendingCount: pendingCount,
+    );
+  }
+}
+
+final invoiceSummaryProvider = Provider<InvoiceSummary>((ref) {
+  final invoices = ref.watch(invoicesProvider).value ?? const <InvoiceModel>[];
+  return InvoiceSummary.fromInvoices(invoices);
+});
+
 class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
   InvoiceRepository get _repository => ref.read(invoiceRepositoryProvider);
 
@@ -34,6 +77,7 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
 
   /// Tạo hóa đơn mới và lưu lên cả local + Supabase
   Future<String> createInvoice({
+    TransactionType invoiceType = TransactionType.expense,
     String? supplierName,
     String? supplierTaxCode,
     String? invoiceNumber,
@@ -56,6 +100,7 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
       id: const Uuid().v4(),
       companyId: companyId,
       uploadedBy: user.id,
+      invoiceType: invoiceType,
       supplierName: supplierName,
       supplierTaxCode: supplierTaxCode,
       invoiceNumber: invoiceNumber,

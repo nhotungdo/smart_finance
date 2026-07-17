@@ -6,6 +6,7 @@ import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/providers/invoices_provider.dart';
 import 'package:smart_finance/providers/pdf_export_provider.dart';
+import 'package:smart_finance/providers/transactions_provider.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/smart_button.dart';
 
@@ -45,6 +46,9 @@ class _InvoiceDocument extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDesktop = MediaQuery.sizeOf(context).width > 768;
     final pdfState = ref.watch(pdfExportProvider);
+    final linkedTransaction = ref.watch(
+      linkedTransactionForInvoiceProvider(invoice.id),
+    );
     final currency = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: '₫',
@@ -99,6 +103,55 @@ class _InvoiceDocument extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
+                linkedTransaction.when(
+                  loading: () => const LinearProgressIndicator(minHeight: 2),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (transaction) => BentoCard(
+                    borderRadius: 8,
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          transaction == null
+                              ? Icons.link_off_rounded
+                              : Icons.link_rounded,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                transaction == null
+                                    ? 'Chưa tạo giao dịch từ hóa đơn'
+                                    : 'Đã liên kết giao dịch',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (transaction != null)
+                                Text(
+                                  transaction.transactionId,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (transaction != null)
+                          IconButton(
+                            tooltip: 'Xem giao dịch',
+                            onPressed: () => context.push(
+                              '/expenses/${transaction.transactionId}',
+                            ),
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 BentoCard(
                   padding: EdgeInsets.zero,
                   borderRadius: 8,
@@ -197,7 +250,9 @@ class _InvoiceDocument extends ConsumerWidget {
           : CrossAxisAlignment.start,
       children: [
         Text(
-          'HÓA ĐƠN',
+          invoice.invoiceType == TransactionType.income
+              ? 'HÓA ĐƠN THU'
+              : 'HÓA ĐƠN CHI',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -227,7 +282,9 @@ class _InvoiceDocument extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'NHÀ CUNG CẤP',
+          invoice.invoiceType == TransactionType.income
+              ? 'KHÁCH HÀNG'
+              : 'NHÀ CUNG CẤP',
           style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w700,

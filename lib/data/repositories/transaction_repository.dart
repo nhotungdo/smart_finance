@@ -81,11 +81,7 @@ class TransactionRepository {
           : 'transaction_id = ? AND company_id = ? AND status = ?',
       whereArgs: companyId == null
           ? [transactionId, RecordStatus.active.databaseValue]
-          : [
-              transactionId,
-              companyId,
-              RecordStatus.active.databaseValue,
-            ],
+          : [transactionId, companyId, RecordStatus.active.databaseValue],
       limit: 1,
     );
     if (result.isEmpty) return null;
@@ -122,6 +118,20 @@ class TransactionRepository {
 
   Future<void> deleteTransaction(String transactionId) async {
     final db = await _databaseProvider();
+    final transaction = await getTransactionById(transactionId);
+    if (transaction == null) {
+      throw StateError('Không tìm thấy giao dịch cần xóa.');
+    }
+    if (transaction.invoiceId != null) {
+      throw StateError(
+        'Giao dịch đang liên kết với hóa đơn nên không thể xóa.',
+      );
+    }
+    if (await _hasLaterActiveTransaction(transaction)) {
+      throw StateError(
+        'Không thể xóa giao dịch này vì đã có giao dịch phát sinh sau đó.',
+      );
+    }
     final affectedRows = await db.update(
       'transactions',
       {
@@ -137,14 +147,125 @@ class TransactionRepository {
     }
   }
 
-  Future<bool> hasActiveTransactionForInvoice(String invoiceId) async {
+  Future<void> updateTransaction(TransactionModel transaction) async {
+    if (transaction.amount <= 0) {
+      throw ArgumentError.value(
+        transaction.amount,
+        'amount',
+        'Số tiền phải lớn hơn 0',
+      );
+    }
+    final db = await _databaseProvider();
+    final current = await getTransactionById(transaction.transactionId);
+    if (current == null) {
+      throw StateError('Không tìm thấy giao dịch cần sửa.');
+    }
+    if (current.invoiceId != null) {
+      throw StateError(
+        'Giao dịch tạo từ hóa đơn được khóa để bảo toàn số liệu.',
+      );
+    }
+
+    final updated = transaction.copyWith(
+      companyId: current.companyId,
+      createdBy: current.createdBy,
+      createdAt: current.createdAt,
+      status: current.status,
+      updatedAt: DateTime.now(),
+      isSynced: false,
+    );
+    final affectedRows = await db.update(
+      'transactions',
+      updated.toMap(),
+      where: 'transaction_id = ?',
+      whereArgs: [transaction.transactionId],
+    );
+    if (affectedRows == 0) {
+      throw StateError('Không tìm thấy giao dịch cần sửa.');
+    }
+  }
+
+  Future<void> linkInvoiceToTransaction({
+    required String transactionId,
+    required String invoiceId,
+  }) async {
+    final db = await _databaseProvider();
+    final current = await getTransactionById(transactionId);
+    if (current == null) {
+      throw StateError('Không tìm thấy giao dịch cần liên kết.');
+    }
+    if (current.transactionType != TransactionType.expense) {
+      throw StateError('Chỉ giao dịch chi mới tạo hóa đơn đầu vào.');
+    }
+    if (current.invoiceId == invoiceId) return;
+    if (current.invoiceId != null) {
+      throw StateError('Giao dịch này đã liên kết với một hóa đơn khác.');
+    }
+    final linkedTransaction = await getActiveTransactionForInvoice(invoiceId);
+    if (linkedTransaction != null &&
+        linkedTransaction.transactionId != transactionId) {
+      throw StateError('Hóa đơn này đã liên kết với một giao dịch khác.');
+    }
+
+    final affectedRows = await db.update(
+      'transactions',
+      {
+        'invoice_id': invoiceId,
+        'updated_at': DateTime.now().toIso8601String(),
+        'is_synced': 0,
+      },
+      where: 'transaction_id = ? AND status = ?',
+      whereArgs: [transactionId, RecordStatus.active.databaseValue],
+    );
+    if (affectedRows == 0) {
+      throw StateError('Không thể liên kết hóa đơn với giao dịch.');
+    }
+  }
+
+  Future<TransactionModel?> getActiveTransactionForInvoice(
+    String invoiceId,
+  ) async {
     final db = await _databaseProvider();
     final rows = await db.query(
       'transactions',
-      columns: ['transaction_id'],
       where: 'invoice_id = ? AND status = ?',
       whereArgs: [invoiceId, RecordStatus.active.databaseValue],
       limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return TransactionModel.fromMap(rows.first);
+  }
+
+  Future<bool> hasActiveTransactionForInvoice(String invoiceId) async {
+    return await getActiveTransactionForInvoice(invoiceId) != null;
+  }
+
+  Future<bool> _hasLaterActiveTransaction(TransactionModel transaction) async {
+    final db = await _databaseProvider();
+    final rows = await db.rawQuery(
+      '''
+      SELECT 1
+      FROM transactions
+      WHERE status = ?
+        AND transaction_id <> ?
+        AND company_id IS ?
+        AND (
+          transaction_date > ?
+          OR (
+            transaction_date = ?
+            AND COALESCE(created_at, '') > ?
+          )
+        )
+      LIMIT 1
+      ''',
+      [
+        RecordStatus.active.databaseValue,
+        transaction.transactionId,
+        transaction.companyId,
+        transaction.transactionDate.toIso8601String(),
+        transaction.transactionDate.toIso8601String(),
+        transaction.createdAt?.toIso8601String() ?? '',
+      ],
     );
     return rows.isNotEmpty;
   }

@@ -40,6 +40,34 @@ class ChartDataPoint {
   ChartDataPoint({required this.label, required this.value1, this.value2 = 0});
 }
 
+class InvoiceComparisonSummary {
+  const InvoiceComparisonSummary({
+    this.transactionIncome = 0,
+    this.transactionExpense = 0,
+    this.invoiceIncomeSubtotal = 0,
+    this.invoiceIncomeVat = 0,
+    this.invoiceIncomeTotal = 0,
+    this.invoiceExpenseSubtotal = 0,
+    this.invoiceExpenseVat = 0,
+    this.invoiceExpenseTotal = 0,
+  });
+
+  final int transactionIncome;
+  final int transactionExpense;
+  final int invoiceIncomeSubtotal;
+  final int invoiceIncomeVat;
+  final int invoiceIncomeTotal;
+  final int invoiceExpenseSubtotal;
+  final int invoiceExpenseVat;
+  final int invoiceExpenseTotal;
+
+  bool get isEmpty =>
+      transactionIncome == 0 &&
+      transactionExpense == 0 &&
+      invoiceIncomeTotal == 0 &&
+      invoiceExpenseTotal == 0;
+}
+
 class ReportData {
   final ReportSummaryModel summary;
   final List<ExpenseAnalysisModel> expenseAnalysis;

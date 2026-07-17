@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/user_model.dart';
 import 'package:smart_finance/data/repositories/invoice_repository.dart';
@@ -20,6 +21,35 @@ class _FakeInvoiceRepository implements InvoiceRepository {
 }
 
 void main() {
+  test('invoice summary is derived from the current invoice list', () {
+    final now = DateTime(2026, 7, 17);
+    final summary = InvoiceSummary.fromInvoices([
+      InvoiceModel(
+        id: 'invoice-1',
+        companyId: 'company-1',
+        uploadedBy: 'user-1',
+        totalAmount: 3850000,
+        scanStatus: InvoiceScanStatus.scanned,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      InvoiceModel(
+        id: 'invoice-2',
+        companyId: 'company-1',
+        uploadedBy: 'user-1',
+        totalAmount: 1320000,
+        scanStatus: InvoiceScanStatus.notScanned,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ]);
+
+    expect(summary.totalValue, 5170000);
+    expect(summary.pendingValue, 1320000);
+    expect(summary.invoiceCount, 2);
+    expect(summary.pendingCount, 1);
+  });
+
   test(
     'invoice notifier can refresh repeatedly without late init errors',
     () async {

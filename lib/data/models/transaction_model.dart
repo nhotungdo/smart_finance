@@ -33,6 +33,40 @@ class TransactionModel {
     this.isSynced = false,
   });
 
+  TransactionModel copyWith({
+    String? transactionId,
+    String? companyId,
+    String? categoryId,
+    String? createdBy,
+    String? invoiceId,
+    int? amount,
+    TransactionType? transactionType,
+    DateTime? transactionDate,
+    String? description,
+    String? receiptImagePath,
+    RecordStatus? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isSynced,
+  }) {
+    return TransactionModel(
+      transactionId: transactionId ?? this.transactionId,
+      companyId: companyId ?? this.companyId,
+      categoryId: categoryId ?? this.categoryId,
+      createdBy: createdBy ?? this.createdBy,
+      invoiceId: invoiceId ?? this.invoiceId,
+      amount: amount ?? this.amount,
+      transactionType: transactionType ?? this.transactionType,
+      transactionDate: transactionDate ?? this.transactionDate,
+      description: description ?? this.description,
+      receiptImagePath: receiptImagePath ?? this.receiptImagePath,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isSynced: isSynced ?? this.isSynced,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'transaction_id': transactionId,

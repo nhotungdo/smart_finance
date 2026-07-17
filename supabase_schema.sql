@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   invoice_id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   company_id TEXT REFERENCES public.companies(company_id) ON DELETE CASCADE,
   uploaded_by TEXT REFERENCES public.users(user_id) ON DELETE SET NULL,
+  invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+    CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
   supplier_name TEXT,
   supplier_tax_code TEXT,
   invoice_number TEXT,
@@ -136,6 +138,9 @@ ALTER TABLE public.categories
 ALTER TABLE public.invoices
   ALTER COLUMN invoice_id SET DEFAULT gen_random_uuid()::text;
 
+ALTER TABLE public.invoices
+  ADD COLUMN IF NOT EXISTS invoice_type TEXT NOT NULL DEFAULT 'EXPENSE';
+
 ALTER TABLE public.transactions
   ALTER COLUMN transaction_id SET DEFAULT gen_random_uuid()::text;
 
@@ -200,6 +205,12 @@ SET vat_rate = 10,
     END
 WHERE vat_rate IS NOT NULL AND vat_rate NOT IN (8, 10);
 
+UPDATE public.invoices
+SET invoice_type = CASE
+  WHEN UPPER(invoice_type) = 'INCOME' THEN 'INCOME'
+  ELSE 'EXPENSE'
+END;
+
 -- Supabase Auth owns credentials; public.users must never keep passwords.
 UPDATE public.users SET password_hash = NULL WHERE password_hash IS NOT NULL;
 
@@ -230,6 +241,9 @@ ALTER TABLE public.transactions ADD CONSTRAINT transactions_transaction_type_che
 ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE public.transactions ADD CONSTRAINT transactions_status_check
   CHECK (status IN ('ACTIVE', 'DELETED'));
+ALTER TABLE public.invoices DROP CONSTRAINT IF EXISTS invoices_invoice_type_check;
+ALTER TABLE public.invoices ADD CONSTRAINT invoices_invoice_type_check
+  CHECK (invoice_type IN ('INCOME', 'EXPENSE'));
 ALTER TABLE public.ocr_results DROP CONSTRAINT IF EXISTS ocr_results_status_check;
 ALTER TABLE public.ocr_results ADD CONSTRAINT ocr_results_status_check
   CHECK (status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR'));

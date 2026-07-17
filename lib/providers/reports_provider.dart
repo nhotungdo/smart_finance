@@ -7,6 +7,7 @@ import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
+import 'package:smart_finance/providers/invoices_provider.dart';
 import 'package:smart_finance/domain/services/finance_calculator.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -106,12 +107,14 @@ class ReportDataExtended {
   final ReportSummaryModel previous;
   final ReportPeriod period;
   final ReportDateRange dateRange;
+  final InvoiceComparisonSummary invoiceComparison;
 
   const ReportDataExtended({
     required this.current,
     required this.previous,
     required this.period,
     required this.dateRange,
+    this.invoiceComparison = const InvoiceComparisonSummary(),
   });
 
   String trendLabel(int cur, int prev) {
@@ -271,6 +274,7 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
     throw StateError('Tài khoản chưa có hồ sơ doanh nghiệp.');
   }
   final repo = ref.read(transactionRepositoryProvider);
+  final invoiceRepo = ref.read(invoiceRepositoryProvider);
 
   final range = getDateRange(period);
   final prev = getPreviousDateRange(period);
@@ -283,8 +287,21 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
     ),
     repo.getTransactionsByDateRange(prev.start, prev.end, companyId: companyId),
   ]);
+  final invoices = await invoiceRepo.getInvoicesByDateRange(
+    range.start,
+    range.end,
+    companyId: companyId,
+  );
 
   final curReport = _computeReport(results[0], categories, period, range);
+  final invoiceIncome = FinanceCalculator.invoiceTotals(
+    invoices,
+    TransactionType.income,
+  );
+  final invoiceExpense = FinanceCalculator.invoiceTotals(
+    invoices,
+    TransactionType.expense,
+  );
 
   final pi = FinanceCalculator.totalIncome(results[1]);
   final pe = FinanceCalculator.totalExpense(results[1]);
@@ -303,5 +320,15 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
     previous: prevSummary,
     period: period,
     dateRange: range,
+    invoiceComparison: InvoiceComparisonSummary(
+      transactionIncome: curReport.summary.totalIncome,
+      transactionExpense: curReport.summary.totalExpense,
+      invoiceIncomeSubtotal: invoiceIncome.subtotal,
+      invoiceIncomeVat: invoiceIncome.vat,
+      invoiceIncomeTotal: invoiceIncome.total,
+      invoiceExpenseSubtotal: invoiceExpense.subtotal,
+      invoiceExpenseVat: invoiceExpense.vat,
+      invoiceExpenseTotal: invoiceExpense.total,
+    ),
   );
 });

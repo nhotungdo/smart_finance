@@ -15,8 +15,6 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
-  bool _isCashFlow = true;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -37,7 +35,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 PageHeader(
                   title: 'Báo cáo tài chính',
                   subtitle: 'Phân tích chi tiết theo từng kỳ báo cáo.',
-                  action: _buildToggle(theme),
                 ),
                 const SizedBox(height: 16),
                 // ── Bộ lọc thời gian ──
@@ -93,12 +90,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         isDesktop,
                         reportExt,
                       );
+                      final comparisonChart = _buildInvoiceComparisonCard(
+                        theme,
+                        reportExt.invoiceComparison,
+                      );
 
                       return KeyedSubtree(
                         key: ValueKey('data-${reportExt.period.name}'),
                         child: _buildReportContent(
                           barChart: barChart,
                           pieChart: pieChart,
+                          comparisonChart: comparisonChart,
                           summaryTable: summaryTable,
                         ),
                       );
@@ -116,6 +118,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget _buildReportContent({
     required Widget barChart,
     required Widget pieChart,
+    required Widget comparisonChart,
     required Widget summaryTable,
   }) {
     return LayoutBuilder(
@@ -152,38 +155,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [charts, const SizedBox(height: 16), summaryTable],
+          children: [
+            charts,
+            const SizedBox(height: 16),
+            comparisonChart,
+            const SizedBox(height: 16),
+            summaryTable,
+          ],
         );
       },
-    );
-  }
-
-  Widget _buildToggle(ThemeData theme) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ToggleBtn(
-              title: 'Dòng tiền',
-              isSelected: _isCashFlow,
-              onTap: () => setState(() => _isCashFlow = true),
-            ),
-            _ToggleBtn(
-              title: 'Cân đối kế toán',
-              isSelected: !_isCashFlow,
-              onTap: () => setState(() => _isCashFlow = false),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -263,6 +243,42 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  Widget _buildInvoiceComparisonCard(
+    ThemeData theme,
+    InvoiceComparisonSummary summary,
+  ) {
+    return BentoCard(
+      showAccentStrip: true,
+      accentColor: const Color(0xFF0EA5E9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đối chiếu giao dịch và hóa đơn',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Hóa đơn được tách tiền trước thuế và VAT; giao dịch thể hiện dòng tiền thực tế.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 300,
+            child: summary.isEmpty
+                ? _emptyChart(theme)
+                : _InvoiceComparisonChart(summary: summary, theme: theme),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _rangeLabel(ReportDataExtended ext) {
     final fmt = DateFormat('dd/MM/yyyy');
     return '${fmt.format(ext.dateRange.start)} – ${fmt.format(ext.dateRange.end)}';
@@ -332,58 +348,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     String trend(int c, int p) => ext.trendLabel(c, p);
     bool positive(int c, int p) => ext.isTrendPositive(c, p);
 
-    final rows = _isCashFlow
-        ? [
-            _SummaryRow(
-              label: 'Tổng thu nhập',
-              current: currency.format(cur.totalIncome),
-              previous: currency.format(prev.totalIncome),
-              trend: trend(cur.totalIncome, prev.totalIncome),
-              isPositive: positive(cur.totalIncome, prev.totalIncome),
-            ),
-            _SummaryRow(
-              label: 'Tổng chi phí',
-              current: currency.format(cur.totalExpense),
-              previous: currency.format(prev.totalExpense),
-              trend: trend(cur.totalExpense, prev.totalExpense),
-              isPositive: !positive(cur.totalExpense, prev.totalExpense),
-            ),
-            _SummaryRow(
-              label: 'Lợi nhuận ròng',
-              current: currency.format(cur.netProfit),
-              previous: currency.format(prev.netProfit),
-              trend: trend(cur.netProfit, prev.netProfit),
-              isPositive: positive(cur.netProfit, prev.netProfit),
-              isTotal: true,
-            ),
-          ]
-        : [
-            _SummaryRow(
-              label: 'Tài sản hiện tại',
-              current: currency.format(cur.currentAssets),
-              previous: currency.format(prev.currentAssets),
-              trend: trend(cur.currentAssets, prev.currentAssets),
-              isPositive: positive(cur.currentAssets, prev.currentAssets),
-            ),
-            _SummaryRow(
-              label: 'Nợ phải trả',
-              current: currency.format(cur.currentLiabilities),
-              previous: currency.format(prev.currentLiabilities),
-              trend: trend(cur.currentLiabilities, prev.currentLiabilities),
-              isPositive: !positive(
-                cur.currentLiabilities,
-                prev.currentLiabilities,
-              ),
-            ),
-            _SummaryRow(
-              label: 'Vốn chủ sở hữu',
-              current: currency.format(cur.totalEquity),
-              previous: currency.format(prev.totalEquity),
-              trend: trend(cur.totalEquity, prev.totalEquity),
-              isPositive: positive(cur.totalEquity, prev.totalEquity),
-              isTotal: true,
-            ),
-          ];
+    final rows = [
+      _SummaryRow(
+        label: 'Tổng thu nhập',
+        current: currency.format(cur.totalIncome),
+        previous: currency.format(prev.totalIncome),
+        trend: trend(cur.totalIncome, prev.totalIncome),
+        isPositive: positive(cur.totalIncome, prev.totalIncome),
+      ),
+      _SummaryRow(
+        label: 'Tổng chi phí',
+        current: currency.format(cur.totalExpense),
+        previous: currency.format(prev.totalExpense),
+        trend: trend(cur.totalExpense, prev.totalExpense),
+        isPositive: !positive(cur.totalExpense, prev.totalExpense),
+      ),
+      _SummaryRow(
+        label: 'Lợi nhuận ròng',
+        current: currency.format(cur.netProfit),
+        previous: currency.format(prev.netProfit),
+        trend: trend(cur.netProfit, prev.netProfit),
+        isPositive: positive(cur.netProfit, prev.netProfit),
+        isTotal: true,
+      ),
+    ];
 
     return BentoCard(
       padding: EdgeInsets.zero,
@@ -406,7 +394,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
             ),
             child: Text(
-              _isCashFlow ? 'Tóm tắt Dòng tiền' : 'Tóm tắt Cân đối kế toán',
+              'Tóm tắt Dòng tiền',
               style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -883,40 +871,142 @@ class _PieChartWidgetState extends State<_PieChartWidget> {
 }
 
 // ─── Toggle Button ────────────────────────────────────────────
-class _ToggleBtn extends StatelessWidget {
-  final String title;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _InvoiceComparisonChart extends StatelessWidget {
+  const _InvoiceComparisonChart({required this.summary, required this.theme});
 
-  const _ToggleBtn({
-    required this.title,
-    required this.isSelected,
-    required this.onTap,
-  });
+  final InvoiceComparisonSummary summary;
+  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          title,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: isSelected
-                ? theme.colorScheme.onPrimaryContainer
-                : theme.colorScheme.onSurfaceVariant,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    final values = <int>[
+      summary.transactionIncome,
+      summary.transactionExpense,
+      summary.invoiceIncomeSubtotal,
+      summary.invoiceIncomeVat,
+      summary.invoiceExpenseSubtotal,
+      summary.invoiceExpenseVat,
+    ];
+    const labels = [
+      'GD\nThu',
+      'GD\nChi',
+      'HĐ Thu\ntrước thuế',
+      'VAT\nThu',
+      'HĐ Chi\ntrước thuế',
+      'VAT\nChi',
+    ];
+    const tooltipLabels = [
+      'Giao dịch Thu',
+      'Giao dịch Chi',
+      'Hóa đơn Thu trước thuế',
+      'VAT hóa đơn Thu',
+      'Hóa đơn Chi trước thuế',
+      'VAT hóa đơn Chi',
+    ];
+    const colors = [
+      Color(0xFF10B981),
+      Color(0xFFEF4444),
+      Color(0xFF2563EB),
+      Color(0xFF06B6D4),
+      Color(0xFFF59E0B),
+      Color(0xFFEC4899),
+    ];
+    final maximum = values.fold<int>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
+    final maxY = maximum == 0 ? 1000.0 : maximum * 1.25;
+
+    return BarChart(
+      BarChartData(
+        maxY: maxY,
+        alignment: BarChartAlignment.spaceAround,
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => theme.colorScheme.surfaceContainerHighest,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final value = NumberFormat.compactCurrency(
+                locale: 'vi_VN',
+                symbol: '₫',
+              ).format(rod.toY);
+              return BarTooltipItem(
+                '${tooltipLabels[group.x]}\n$value',
+                TextStyle(color: theme.colorScheme.onSurface, fontSize: 11),
+              );
+            },
           ),
         ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 54,
+              getTitlesWidget: (value, meta) => SideTitleWidget(
+                meta: meta,
+                child: Text(
+                  value == 0
+                      ? ''
+                      : NumberFormat.compact(locale: 'vi_VN').format(value),
+                  style: const TextStyle(fontSize: 9),
+                ),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= labels.length) {
+                  return const SizedBox.shrink();
+                }
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    labels[index],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 9),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            strokeWidth: 1,
+          ),
+        ),
+        barGroups: List.generate(values.length, (index) {
+          return BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: values[index].toDouble(),
+                color: colors[index],
+                width: 18,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
+              ),
+            ],
+          );
+        }),
       ),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
     );
   }
 }

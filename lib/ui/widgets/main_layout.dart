@@ -53,7 +53,7 @@ class _AdaptiveScaffold extends ConsumerWidget {
           if (isDesktop)
             _DesktopSidebar(currentIndex: currentIndex, isDark: isDark),
           Expanded(
-            child: SafeArea(top: isDesktop, child: child),
+            child: SafeArea(top: isDesktop, left: !isDesktop, child: child),
           ),
         ],
       ),
@@ -76,11 +76,15 @@ class _AdaptiveScaffold extends ConsumerWidget {
         children: [
           _BrandMark(size: 30, iconSize: 16),
           const SizedBox(width: 8),
-          Text(
-            'SmartFinance',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: theme.colorScheme.primary,
+          Expanded(
+            child: Text(
+              'SmartFinance',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
         ],
@@ -109,6 +113,7 @@ class _DesktopSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final leftSafeInset = MediaQuery.paddingOf(context).left;
     final sidebarBg = isDark
         ? const Color(0xFF0F172A)
         : const Color(0xFFF8FAFC);
@@ -117,12 +122,13 @@ class _DesktopSidebar extends ConsumerWidget {
         : const Color(0xFFE2E8F0);
 
     return Container(
-      width: 220,
+      width: 220 + leftSafeInset,
       decoration: BoxDecoration(
         color: sidebarBg,
         border: Border(right: BorderSide(color: sidebarBorder)),
       ),
       child: SafeArea(
+        right: false,
         child: Column(
           children: [
             const SizedBox(height: 24),
@@ -132,11 +138,15 @@ class _DesktopSidebar extends ConsumerWidget {
                 children: [
                   const _BrandMark(size: 36, iconSize: 20),
                   const SizedBox(width: 10),
-                  Text(
-                    'SmartFinance',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.primary,
+                  Expanded(
+                    child: Text(
+                      'SmartFinance',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -146,44 +156,46 @@ class _DesktopSidebar extends ConsumerWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Column(
-                  children: [
-                    _SidebarNavItem(
-                      icon: Icons.dashboard_rounded,
-                      label: 'Tổng quan',
-                      isActive: currentIndex == 0,
-                      onTap: currentIndex == 0
-                          ? null
-                          : () => context.go('/dashboard'),
-                    ),
-                    const SizedBox(height: 4),
-                    _SidebarNavItem(
-                      icon: Icons.receipt_long_rounded,
-                      label: 'Hóa đơn',
-                      isActive: currentIndex == 1,
-                      onTap: currentIndex == 1
-                          ? null
-                          : () => context.go('/invoicing'),
-                    ),
-                    const SizedBox(height: 4),
-                    _SidebarNavItem(
-                      icon: Icons.payments_rounded,
-                      label: 'Chi phí',
-                      isActive: currentIndex == 2,
-                      onTap: currentIndex == 2
-                          ? null
-                          : () => context.go('/expenses'),
-                    ),
-                    const SizedBox(height: 4),
-                    _SidebarNavItem(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Báo cáo',
-                      isActive: currentIndex == 3,
-                      onTap: currentIndex == 3
-                          ? null
-                          : () => context.go('/reports'),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _SidebarNavItem(
+                        icon: Icons.dashboard_rounded,
+                        label: 'Tổng quan',
+                        isActive: currentIndex == 0,
+                        onTap: currentIndex == 0
+                            ? null
+                            : () => context.go('/dashboard'),
+                      ),
+                      const SizedBox(height: 4),
+                      _SidebarNavItem(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Hóa đơn',
+                        isActive: currentIndex == 1,
+                        onTap: currentIndex == 1
+                            ? null
+                            : () => context.go('/invoicing'),
+                      ),
+                      const SizedBox(height: 4),
+                      _SidebarNavItem(
+                        icon: Icons.payments_rounded,
+                        label: 'Chi phí',
+                        isActive: currentIndex == 2,
+                        onTap: currentIndex == 2
+                            ? null
+                            : () => context.go('/expenses'),
+                      ),
+                      const SizedBox(height: 4),
+                      _SidebarNavItem(
+                        icon: Icons.bar_chart_rounded,
+                        label: 'Báo cáo',
+                        isActive: currentIndex == 3,
+                        onTap: currentIndex == 3
+                            ? null
+                            : () => context.go('/reports'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -290,13 +302,17 @@ class _SidebarNavItem extends StatelessWidget {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 10),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isActive
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isActive
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
               ),
             ],
