@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class SmartTextField extends StatefulWidget {
   final TextEditingController? controller;
@@ -13,6 +14,7 @@ class SmartTextField extends StatefulWidget {
   final void Function(String)? onChanged;
   final int maxLines;
   final TextStyle? style;
+  final List<TextInputFormatter>? inputFormatters;
 
   const SmartTextField({
     super.key,
@@ -28,6 +30,7 @@ class SmartTextField extends StatefulWidget {
     this.onChanged,
     this.maxLines = 1,
     this.style,
+    this.inputFormatters,
   });
 
   @override
@@ -57,7 +60,7 @@ class _SmartTextFieldState extends State<SmartTextField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
@@ -69,7 +72,7 @@ class _SmartTextFieldState extends State<SmartTextField> {
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   blurRadius: 8,
                   spreadRadius: 2,
-                )
+                ),
               ]
             : [],
       ),
@@ -82,6 +85,7 @@ class _SmartTextFieldState extends State<SmartTextField> {
         onChanged: widget.onChanged,
         maxLines: widget.maxLines,
         style: widget.style,
+        inputFormatters: widget.inputFormatters,
         decoration: InputDecoration(
           labelText: widget.labelText,
           hintText: widget.hintText,

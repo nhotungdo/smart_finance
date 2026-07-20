@@ -1,24 +1,29 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_finance/data/models/category_model.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/report_model.dart';
 import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
+import 'package:smart_finance/providers/invoices_provider.dart';
+import 'package:smart_finance/domain/services/finance_calculator.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Enum: Bộ lọc thời gian
 // ─────────────────────────────────────────────────────────────
-enum ReportPeriod { today, thisWeek, thisMonth, thisQuarter, thisYear }
+enum ReportPeriod { thisMonth, previousMonth, fiscalYear }
 
 extension ReportPeriodLabel on ReportPeriod {
   String get label {
     switch (this) {
-      case ReportPeriod.today:       return 'Hôm nay';
-      case ReportPeriod.thisWeek:    return 'Tuần này';
-      case ReportPeriod.thisMonth:   return 'Tháng này';
-      case ReportPeriod.thisQuarter: return 'Quý này';
-      case ReportPeriod.thisYear:    return 'Năm nay';
+      case ReportPeriod.thisMonth:
+        return 'Tháng này';
+      case ReportPeriod.previousMonth:
+        return 'Tháng trước';
+      case ReportPeriod.fiscalYear:
+        return 'Toàn bộ kỳ tài khóa';
     }
   }
 }
@@ -38,30 +43,17 @@ class ReportDateRange {
 ReportDateRange getDateRange(ReportPeriod period) {
   final now = DateTime.now();
   switch (period) {
-    case ReportPeriod.today:
-      return ReportDateRange(
-        start: DateTime(now.year, now.month, now.day),
-        end: DateTime(now.year, now.month, now.day, 23, 59, 59),
-      );
-    case ReportPeriod.thisWeek:
-      final s = now.subtract(Duration(days: now.weekday - 1));
-      return ReportDateRange(
-        start: DateTime(s.year, s.month, s.day),
-        end: DateTime(now.year, now.month, now.day, 23, 59, 59),
-      );
     case ReportPeriod.thisMonth:
       return ReportDateRange(
         start: DateTime(now.year, now.month, 1),
         end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
       );
-    case ReportPeriod.thisQuarter:
-      final q = (now.month - 1) ~/ 3;
-      final sm = q * 3 + 1;
+    case ReportPeriod.previousMonth:
       return ReportDateRange(
-        start: DateTime(now.year, sm, 1),
-        end: DateTime(now.year, sm + 3, 0, 23, 59, 59),
+        start: DateTime(now.year, now.month - 1, 1),
+        end: DateTime(now.year, now.month, 0, 23, 59, 59),
       );
-    case ReportPeriod.thisYear:
+    case ReportPeriod.fiscalYear:
       return ReportDateRange(
         start: DateTime(now.year, 1, 1),
         end: DateTime(now.year, 12, 31, 23, 59, 59),
@@ -72,39 +64,17 @@ ReportDateRange getDateRange(ReportPeriod period) {
 ReportDateRange getPreviousDateRange(ReportPeriod period) {
   final now = DateTime.now();
   switch (period) {
-    case ReportPeriod.today:
-      final y = now.subtract(const Duration(days: 1));
-      return ReportDateRange(
-        start: DateTime(y.year, y.month, y.day),
-        end: DateTime(y.year, y.month, y.day, 23, 59, 59),
-      );
-    case ReportPeriod.thisWeek:
-      final s = now.subtract(Duration(days: now.weekday - 1 + 7));
-      final e = now.subtract(Duration(days: now.weekday));
-      return ReportDateRange(
-        start: DateTime(s.year, s.month, s.day),
-        end: DateTime(e.year, e.month, e.day, 23, 59, 59),
-      );
     case ReportPeriod.thisMonth:
       return ReportDateRange(
         start: DateTime(now.year, now.month - 1, 1),
         end: DateTime(now.year, now.month, 0, 23, 59, 59),
       );
-    case ReportPeriod.thisQuarter:
-      final q = (now.month - 1) ~/ 3;
-      final sm = q * 3 - 2;
-      final em = q * 3;
-      if (sm < 1) {
-        return ReportDateRange(
-          start: DateTime(now.year - 1, sm + 12, 1),
-          end: DateTime(now.year - 1, em + 12 + 1, 0, 23, 59, 59),
-        );
-      }
+    case ReportPeriod.previousMonth:
       return ReportDateRange(
-        start: DateTime(now.year, sm, 1),
-        end: DateTime(now.year, em + 1, 0, 23, 59, 59),
+        start: DateTime(now.year, now.month - 2, 1),
+        end: DateTime(now.year, now.month - 1, 0, 23, 59, 59),
       );
-    case ReportPeriod.thisYear:
+    case ReportPeriod.fiscalYear:
       return ReportDateRange(
         start: DateTime(now.year - 1, 1, 1),
         end: DateTime(now.year - 1, 12, 31, 23, 59, 59),
@@ -124,9 +94,10 @@ class ReportPeriodNotifier extends Notifier<ReportPeriod> {
   }
 }
 
-final reportPeriodProvider = NotifierProvider<ReportPeriodNotifier, ReportPeriod>(
-  () => ReportPeriodNotifier(),
-);
+final reportPeriodProvider =
+    NotifierProvider<ReportPeriodNotifier, ReportPeriod>(
+      () => ReportPeriodNotifier(),
+    );
 
 // ─────────────────────────────────────────────────────────────
 // Data class: Báo cáo đầy đủ kèm kỳ trước
@@ -136,21 +107,23 @@ class ReportDataExtended {
   final ReportSummaryModel previous;
   final ReportPeriod period;
   final ReportDateRange dateRange;
+  final InvoiceComparisonSummary invoiceComparison;
 
   const ReportDataExtended({
     required this.current,
     required this.previous,
     required this.period,
     required this.dateRange,
+    this.invoiceComparison = const InvoiceComparisonSummary(),
   });
 
-  String trendLabel(double cur, double prev) {
+  String trendLabel(int cur, int prev) {
     if (prev == 0) return cur > 0 ? '▲ Mới' : '-';
     final d = ((cur - prev) / prev) * 100;
     return '${d >= 0 ? '+' : ''}${d.toStringAsFixed(1)}%';
   }
 
-  bool isTrendPositive(double cur, double prev) => cur >= prev;
+  bool isTrendPositive(int cur, int prev) => cur >= prev;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -162,15 +135,22 @@ ReportData _computeReport(
   ReportPeriod period,
   ReportDateRange range,
 ) {
-  final defaultColors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#6B7280','#F97316','#06B6D4'];
-  double totalIncome = 0, totalExpense = 0;
-  final Map<String, double> expByCategory = {};
+  final defaultColors = [
+    '#3B82F6',
+    '#10B981',
+    '#F59E0B',
+    '#EF4444',
+    '#8B5CF6',
+    '#6B7280',
+    '#F97316',
+    '#06B6D4',
+  ];
+  final totalIncome = FinanceCalculator.totalIncome(txList);
+  final totalExpense = FinanceCalculator.totalExpense(txList);
+  final Map<String, int> expByCategory = {};
 
   for (final tx in txList) {
-    if (tx.transactionType == 'income') {
-      totalIncome += tx.amount;
-    } else {
-      totalExpense += tx.amount;
+    if (tx.transactionType == TransactionType.expense) {
       final k = tx.categoryId ?? 'uncategorized';
       expByCategory[k] = (expByCategory[k] ?? 0) + tx.amount;
     }
@@ -183,7 +163,7 @@ ReportData _computeReport(
       orElse: () => CategoryModel(
         categoryId: 'uncategorized',
         categoryName: 'Khác',
-        categoryType: 'expense',
+        categoryType: TransactionType.expense,
         colorCode: '#6B7280',
       ),
     );
@@ -197,8 +177,7 @@ ReportData _computeReport(
       amount: e.value,
       percentage: pct,
     );
-  }).toList()
-    ..sort((a, b) => b.percentage.compareTo(a.percentage));
+  }).toList()..sort((a, b) => b.percentage.compareTo(a.percentage));
 
   final chart = _buildChart(txList, period, range);
   final summary = ReportSummaryModel(
@@ -206,10 +185,14 @@ ReportData _computeReport(
     totalExpense: totalExpense,
     netProfit: totalIncome - totalExpense,
     currentAssets: totalIncome - totalExpense,
-    currentLiabilities: totalExpense * 0.1,
-    totalEquity: (totalIncome - totalExpense) - totalExpense * 0.1,
+    currentLiabilities: totalExpense ~/ 10,
+    totalEquity: (totalIncome - totalExpense) - (totalExpense ~/ 10),
   );
-  return ReportData(summary: summary, expenseAnalysis: analysis, profitLossChart: chart);
+  return ReportData(
+    summary: summary,
+    expenseAnalysis: analysis,
+    profitLossChart: chart,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -220,59 +203,61 @@ List<ChartDataPoint> _buildChart(
   ReportPeriod period,
   ReportDateRange range,
 ) {
-  double sumIncome(Iterable<TransactionModel> t) =>
-      t.where((x) => x.transactionType == 'income').fold(0.0, (s, x) => s + x.amount);
-  double sumExpense(Iterable<TransactionModel> t) =>
-      t.where((x) => x.transactionType == 'expense').fold(0.0, (s, x) => s + x.amount);
+  int sumIncome(Iterable<TransactionModel> t) => t
+      .where((x) => x.transactionType == TransactionType.income)
+      .fold(0, (s, x) => s + x.amount);
+  int sumExpense(Iterable<TransactionModel> t) => t
+      .where((x) => x.transactionType == TransactionType.expense)
+      .fold(0, (s, x) => s + x.amount);
 
   switch (period) {
-    case ReportPeriod.today:
-      // Theo từng giờ có giao dịch
-      final hourSet = txList.map((t) => t.transactionDate.hour).toSet().toList()..sort();
-      if (hourSet.isEmpty) {
-        return [ChartDataPoint(label: 'Hôm nay', value1: 0, value2: 0)];
-      }
-      return hourSet.map((h) {
-        final ht = txList.where((t) => t.transactionDate.hour == h);
-        return ChartDataPoint(label: '${h}h', value1: sumIncome(ht), value2: sumExpense(ht));
-      }).toList();
-
-    case ReportPeriod.thisWeek:
-      const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-      return List.generate(7, (i) {
-        final day = range.start.add(Duration(days: i));
-        final dt = txList.where((t) =>
-            t.transactionDate.year == day.year &&
-            t.transactionDate.month == day.month &&
-            t.transactionDate.day == day.day);
-        return ChartDataPoint(label: labels[i], value1: sumIncome(dt), value2: sumExpense(dt));
-      });
-
     case ReportPeriod.thisMonth:
-      final daysInMonth = DateTime(range.start.year, range.start.month + 1, 0).day;
+    case ReportPeriod.previousMonth:
+      final daysInMonth = DateTime(
+        range.start.year,
+        range.start.month + 1,
+        0,
+      ).day;
       final weeks = <ChartDataPoint>[];
       for (int w = 0; w < 5; w++) {
         final sd = w * 7 + 1;
         if (sd > daysInMonth) break;
         final ed = (sd + 6).clamp(1, daysInMonth);
-        final wt = txList.where((t) => t.transactionDate.day >= sd && t.transactionDate.day <= ed);
-        weeks.add(ChartDataPoint(label: 'T${w + 1}', value1: sumIncome(wt), value2: sumExpense(wt)));
+        final wt = txList.where(
+          (t) => t.transactionDate.day >= sd && t.transactionDate.day <= ed,
+        );
+        weeks.add(
+          ChartDataPoint(
+            label: 'T${w + 1}',
+            value1: sumIncome(wt),
+            value2: sumExpense(wt),
+          ),
+        );
       }
       return weeks;
 
-    case ReportPeriod.thisQuarter:
-      final sm = range.start.month;
-      return List.generate(3, (i) {
-        final m = sm + i;
-        final mt = txList.where((t) => t.transactionDate.month == m);
-        return ChartDataPoint(label: 'Th $m', value1: sumIncome(mt), value2: sumExpense(mt));
-      });
-
-    case ReportPeriod.thisYear:
-      const ml = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+    case ReportPeriod.fiscalYear:
+      const ml = [
+        'T1',
+        'T2',
+        'T3',
+        'T4',
+        'T5',
+        'T6',
+        'T7',
+        'T8',
+        'T9',
+        'T10',
+        'T11',
+        'T12',
+      ];
       return List.generate(12, (i) {
         final mt = txList.where((t) => t.transactionDate.month == i + 1);
-        return ChartDataPoint(label: ml[i], value1: sumIncome(mt), value2: sumExpense(mt));
+        return ChartDataPoint(
+          label: ml[i],
+          value1: sumIncome(mt),
+          value2: sumExpense(mt),
+        );
       });
   }
 }
@@ -281,36 +266,53 @@ List<ChartDataPoint> _buildChart(
 // Main FutureProvider
 // ─────────────────────────────────────────────────────────────
 final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
-  final period     = ref.watch(reportPeriodProvider);
+  final period = ref.watch(reportPeriodProvider);
   final categories = await ref.watch(categoriesProvider.future);
-  final repo       = ref.read(transactionRepositoryProvider);
+  final profile = await ref.watch(currentUserProfileProvider.future);
+  final companyId = profile?.companyId;
+  if (companyId == null) {
+    throw StateError('Tài khoản chưa có hồ sơ doanh nghiệp.');
+  }
+  final repo = ref.read(transactionRepositoryProvider);
+  final invoiceRepo = ref.read(invoiceRepositoryProvider);
 
   final range = getDateRange(period);
-  final prev  = getPreviousDateRange(period);
+  final prev = getPreviousDateRange(period);
 
   final results = await Future.wait<List<TransactionModel>>([
-    repo.getTransactionsByDateRange(range.start, range.end),
-    repo.getTransactionsByDateRange(prev.start, prev.end),
+    repo.getTransactionsByDateRange(
+      range.start,
+      range.end,
+      companyId: companyId,
+    ),
+    repo.getTransactionsByDateRange(prev.start, prev.end, companyId: companyId),
   ]);
+  final invoices = await invoiceRepo.getInvoicesByDateRange(
+    range.start,
+    range.end,
+    companyId: companyId,
+  );
 
   final curReport = _computeReport(results[0], categories, period, range);
+  final invoiceIncome = FinanceCalculator.invoiceTotals(
+    invoices,
+    TransactionType.income,
+  );
+  final invoiceExpense = FinanceCalculator.invoiceTotals(
+    invoices,
+    TransactionType.expense,
+  );
 
-  double pi = 0, pe = 0;
-  for (final tx in results[1]) {
-    if (tx.transactionType == 'income') {
-      pi += tx.amount;
-    } else {
-      pe += tx.amount;
-    }
-  }
+  final pi = FinanceCalculator.totalIncome(results[1]);
+  final pe = FinanceCalculator.totalExpense(results[1]);
 
   final prevSummary = ReportSummaryModel(
     totalIncome: pi,
     totalExpense: pe,
     netProfit: pi - pe,
     currentAssets: pi - pe,
-    currentLiabilities: pe * 0.1,
-    totalEquity: (pi - pe) - pe * 0.1,
+    currentLiabilities: pe ~/ 10,
+    totalEquity: (pi - pe) - (pe ~/ 10),
   );
 
   return ReportDataExtended(
@@ -318,5 +320,15 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
     previous: prevSummary,
     period: period,
     dateRange: range,
+    invoiceComparison: InvoiceComparisonSummary(
+      transactionIncome: curReport.summary.totalIncome,
+      transactionExpense: curReport.summary.totalExpense,
+      invoiceIncomeSubtotal: invoiceIncome.subtotal,
+      invoiceIncomeVat: invoiceIncome.vat,
+      invoiceIncomeTotal: invoiceIncome.total,
+      invoiceExpenseSubtotal: invoiceExpense.subtotal,
+      invoiceExpenseVat: invoiceExpense.vat,
+      invoiceExpenseTotal: invoiceExpense.total,
+    ),
   );
 });

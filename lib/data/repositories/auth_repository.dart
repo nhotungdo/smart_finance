@@ -1,76 +1,33 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smart_finance/data/database/local_database.dart';
+import 'package:smart_finance/data/models/user_model.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthRepository {
-  final SupabaseClient _supabase;
-
   AuthRepository(this._supabase);
 
-  // Get current user stream
+  final SupabaseClient _supabase;
+
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  // Get current user
   User? get currentUser => _supabase.auth.currentUser;
 
-  // Login with Email/Password and sync profile to Local Database
-  Future<AuthResponse> signInWithEmailPassword(String email, String password) async {
+  Future<AuthResponse> signInWithEmailPassword(
+    String email,
+    String password,
+  ) async {
     final response = await _supabase.auth.signInWithPassword(
-      email: email,
+      email: email.trim().toLowerCase(),
       password: password,
     );
 
     final user = response.user;
-    if (user != null) {
-      try {
-        // Fetch User Profile from Supabase
-        final userData = await _supabase
-            .from('users')
-            .select()
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-        if (userData != null) {
-          final companyId = userData['company_id'];
-
-          // Fetch Company from Supabase
-          final companyData = await _supabase
-              .from('companies')
-              .select()
-              .eq('company_id', companyId)
-              .maybeSingle();
-
-          final localDb = await LocalDatabase.instance.database;
-
-          // Sync Company to Local DB
-          if (companyData != null) {
-            await localDb.insert(
-              'companies',
-              {
-                ...companyData,
-                'is_synced': 1,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
-          }
-
-          // Sync User to Local DB
-          await localDb.insert(
-            'users',
-            {
-              ...userData,
-              'is_synced': 1,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
-        }
-      } catch (e) {
-        debugPrint('Error syncing profile to local DB during login: $e');
-        // We don't rethrow here because the login itself was successful
-      }
+    if (user == null) {
+      throw const AuthException('Đăng nhập không thành công.');
     }
 
+    await _ensureAndCacheProfile(user);
     return response;
   }
 
@@ -80,92 +37,103 @@ class AuthRepository {
     required String fullName,
     required String businessName,
   }) async {
-    // 0. Check if email already exists in local database
-    final localDb = await LocalDatabase.instance.database;
-    final existingUser = await localDb.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email],
-    );
-
-    if (existingUser.isNotEmpty) {
-      throw const AuthException('Tài khoản email đã tồn tại trong hệ thống cục bộ. Vui lòng đăng nhập.');
-    }
-
-    // 1. SignUp with Supabase Auth
-    final authResponse = await _supabase.auth.signUp(
-      email: email,
+    final response = await _supabase.auth.signUp(
+      email: email.trim().toLowerCase(),
       password: password,
       data: {
-        'full_name': fullName,
-        'business_name': businessName,
+        'full_name': fullName.trim(),
+        'business_name': businessName.trim(),
       },
     );
 
-    final user = authResponse.user;
+    final user = response.user;
     if (user == null) {
       throw const AuthException('Đăng ký không thành công.');
     }
 
-    try {
-      // 2. Create Company on Supabase
-      final companyData = await _supabase.from('companies').insert({
-        'company_name': businessName,
-      }).select().single();
-
-      final companyId = companyData['company_id'];
-
-      // 3. Create User Profile on Supabase
-      await _supabase.from('users').insert({
-        'user_id': user.id,
-        'company_id': companyId,
-        'full_name': fullName,
-        'email': email,
-        'status': 'active',
-      });
-
-      // 4. Save to Local Database
-      final nowStr = DateTime.now().toIso8601String();
-      
-      await localDb.insert('companies', {
-        'company_id': companyId,
-        'company_name': businessName,
-        'created_at': nowStr,
-        'updated_at': nowStr,
-        'is_synced': 1,
-      });
-
-      await localDb.insert('users', {
-        'user_id': user.id,
-        'company_id': companyId,
-        'full_name': fullName,
-        'email': email,
-        'status': 'active',
-        'created_at': nowStr,
-        'updated_at': nowStr,
-        'is_synced': 1,
-      });
-      
-    } catch (e) {
-      debugPrint('Error inserting profile data during registration: $e');
-      // If the email requires confirmation, session is null, and RLS blocks insert.
-      // In this case, the Auth user is created, but profiles aren't.
-      if (authResponse.session == null) {
-        throw const AuthException('Đăng ký thành công! Vui lòng kiểm tra Email để xác thực tài khoản.');
-      } else {
-        rethrow;
-      }
+    // Khi tắt xác nhận email, signUp trả session và profile có thể cache ngay.
+    // Khi bật xác nhận email, database trigger vẫn tạo profile; app sẽ cache
+    // profile ở lần đăng nhập đầu tiên sau xác nhận.
+    if (response.session != null) {
+      await _ensureAndCacheProfile(user);
     }
 
-    return authResponse;
+    return response;
   }
 
-  // Gửi email đặt lại mật khẩu qua Supabase Auth
+  Future<UserModel?> getCurrentProfile() async {
+    final authUser = currentUser;
+    if (authUser == null) return null;
+
+    try {
+      return await _ensureAndCacheProfile(authUser);
+    } catch (error) {
+      debugPrint('Không thể tải profile cloud, dùng local cache: $error');
+      final db = await LocalDatabase.instance.database;
+      final rows = await db.query(
+        'users',
+        where: 'user_id = ?',
+        whereArgs: [authUser.id],
+        limit: 1,
+      );
+      if (rows.isEmpty) rethrow;
+      return UserModel.fromMap(rows.first);
+    }
+  }
+
+  Future<UserModel> _ensureAndCacheProfile(User authUser) async {
+    Map<String, dynamic>? profile = await _supabase
+        .from('users')
+        .select()
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+    if (profile == null) {
+      // Fallback cho tài khoản Auth cũ được tạo trước khi cài trigger.
+      await _supabase.rpc('ensure_user_profile');
+      profile = await _supabase
+          .from('users')
+          .select()
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+    }
+
+    if (profile == null || profile['company_id'] == null) {
+      throw const AuthException(
+        'Tài khoản chưa có hồ sơ doanh nghiệp. Hãy chạy lại supabase_schema.sql.',
+      );
+    }
+
+    final company = await _supabase
+        .from('companies')
+        .select()
+        .eq('company_id', profile['company_id'])
+        .maybeSingle();
+
+    if (company == null) {
+      throw const AuthException('Không tìm thấy doanh nghiệp của tài khoản.');
+    }
+
+    final db = await LocalDatabase.instance.database;
+    await db.transaction((txn) async {
+      await txn.insert('companies', {
+        ...company,
+        'is_synced': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert('users', {
+        ...profile!,
+        'password_hash': null,
+        'is_synced': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+
+    return UserModel.fromMap({...profile, 'is_synced': 1});
+  }
+
   Future<void> resetPassword(String email) async {
-    await _supabase.auth.resetPasswordForEmail(email);
+    await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
   }
 
-  // Sign out
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }

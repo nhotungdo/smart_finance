@@ -1,10 +1,10 @@
 class ReportSummaryModel {
-  final double totalIncome;
-  final double totalExpense;
-  final double netProfit;
-  final double currentAssets;
-  final double currentLiabilities;
-  final double totalEquity;
+  final int totalIncome;
+  final int totalExpense;
+  final int netProfit;
+  final int currentAssets;
+  final int currentLiabilities;
+  final int totalEquity;
 
   ReportSummaryModel({
     required this.totalIncome,
@@ -20,7 +20,7 @@ class ExpenseAnalysisModel {
   final String categoryId;
   final String categoryName;
   final String colorCode;
-  final double amount;
+  final int amount;
   final double percentage;
 
   ExpenseAnalysisModel({
@@ -34,14 +34,38 @@ class ExpenseAnalysisModel {
 
 class ChartDataPoint {
   final String label; // e.g., 'Jan', 'Feb', 'Q1', etc.
-  final double value1; // e.g., Income
-  final double value2; // e.g., Expense
+  final int value1; // e.g., Income
+  final int value2; // e.g., Expense
 
-  ChartDataPoint({
-    required this.label,
-    required this.value1,
-    this.value2 = 0.0,
+  ChartDataPoint({required this.label, required this.value1, this.value2 = 0});
+}
+
+class InvoiceComparisonSummary {
+  const InvoiceComparisonSummary({
+    this.transactionIncome = 0,
+    this.transactionExpense = 0,
+    this.invoiceIncomeSubtotal = 0,
+    this.invoiceIncomeVat = 0,
+    this.invoiceIncomeTotal = 0,
+    this.invoiceExpenseSubtotal = 0,
+    this.invoiceExpenseVat = 0,
+    this.invoiceExpenseTotal = 0,
   });
+
+  final int transactionIncome;
+  final int transactionExpense;
+  final int invoiceIncomeSubtotal;
+  final int invoiceIncomeVat;
+  final int invoiceIncomeTotal;
+  final int invoiceExpenseSubtotal;
+  final int invoiceExpenseVat;
+  final int invoiceExpenseTotal;
+
+  bool get isEmpty =>
+      transactionIncome == 0 &&
+      transactionExpense == 0 &&
+      invoiceIncomeTotal == 0 &&
+      invoiceExpenseTotal == 0;
 }
 
 class ReportData {

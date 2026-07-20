@@ -6,18 +6,12 @@ import 'package:smart_finance/ui/routing/app_router.dart';
 import 'package:smart_finance/ui/theme/app_theme.dart';
 import 'package:smart_finance/providers/theme_provider.dart';
 import 'package:smart_finance/providers/sync_provider.dart';
-
-import 'package:flutter/foundation.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:smart_finance/data/database/database_factory_initializer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize SQLite FFI for Windows
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
+  await initializeDatabaseFactory();
 
   // Initialize Supabase
   await Supabase.initialize(
@@ -27,12 +21,12 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
-  runApp(ProviderScope(
-    overrides: [
-      sharedPreferencesProvider.overrideWithValue(prefs),
-    ],
-    child: const MyApp(),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends ConsumerStatefulWidget {

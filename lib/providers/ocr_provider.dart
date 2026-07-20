@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_finance/data/models/ocr_result_model.dart';
 import 'package:smart_finance/data/services/ocr_service.dart';
@@ -27,12 +28,16 @@ class OcrNotifier extends AsyncNotifier<OcrResultModel?> {
   /// Upload ảnh → OCR Extract → Lưu kết quả → Cập nhật invoice
   Future<void> scanInvoice({
     required InvoiceModel invoice,
-    required String localImagePath,
+    required Uint8List imageBytes,
+    required String imageFileName,
+    String? localImagePath,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final result = await _service.scanAndProcess(
         invoice: invoice,
+        imageBytes: imageBytes,
+        imageFileName: imageFileName,
         localImagePath: localImagePath,
       );
       // Refresh invoice list to show updated scan status

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -16,12 +17,11 @@ class LocalDatabase {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    final path = kIsWeb ? filePath : join(await getDatabasesPath(), filePath);
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -32,6 +32,99 @@ class LocalDatabase {
       await _createOcrResultsTable(db);
       await _createPdfExportsTable(db);
     }
+    if (oldVersion < 3) {
+      await _migrateMoneyColumnsToInteger(db);
+    }
+    if (oldVersion < 4) {
+      await _migrateEnumValues(db);
+    }
+    if (oldVersion < 5) {
+      await _deduplicateCategories(db);
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        ALTER TABLE invoices
+        ADD COLUMN invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+          CHECK (invoice_type IN ('INCOME', 'EXPENSE'))
+      ''');
+    }
+    await _createIndexes(db);
+  }
+
+  Future<void> _migrateEnumValues(Database db) async {
+    await db.execute('''
+      UPDATE users
+      SET status = CASE
+        WHEN UPPER(status) = 'DELETED' THEN 'DELETED'
+        ELSE 'ACTIVE'
+      END
+    ''');
+    await db.execute('''
+      UPDATE categories
+      SET
+        category_type = UPPER(category_type),
+        status = CASE
+          WHEN UPPER(status) = 'DELETED' THEN 'DELETED'
+          ELSE 'ACTIVE'
+        END
+    ''');
+    await db.execute('''
+      UPDATE transactions
+      SET
+        transaction_type = UPPER(transaction_type),
+        status = CASE
+          WHEN UPPER(status) = 'DELETED' THEN 'DELETED'
+          ELSE 'ACTIVE'
+        END
+    ''');
+    await db.execute('''
+      UPDATE invoices
+      SET scan_status = CASE UPPER(scan_status)
+        WHEN 'SCANNING' THEN 'SCANNING'
+        WHEN 'SCANNED' THEN 'SCANNED'
+        WHEN 'PROCESSED' THEN 'SCANNED'
+        WHEN 'COMPLETED' THEN 'SCANNED'
+        WHEN 'MANUAL' THEN 'SCANNED'
+        WHEN 'ERROR' THEN 'ERROR'
+        WHEN 'FAILED' THEN 'ERROR'
+        ELSE 'NOT_SCANNED'
+      END
+    ''');
+    await db.execute('''
+      UPDATE ocr_results
+      SET status = CASE UPPER(status)
+        WHEN 'ERROR' THEN 'ERROR'
+        WHEN 'FAILED' THEN 'ERROR'
+        ELSE 'SCANNED'
+      END
+    ''');
+  }
+
+  Future<void> _migrateMoneyColumnsToInteger(Database db) async {
+    await db.execute('''
+      UPDATE transactions
+      SET amount = CAST(ROUND(amount) AS INTEGER)
+      WHERE amount IS NOT NULL
+    ''');
+
+    await db.execute('''
+      UPDATE invoices
+      SET
+        subtotal = CAST(ROUND(subtotal) AS INTEGER),
+        vat_rate = CAST(ROUND(vat_rate) AS INTEGER),
+        vat_amount = CAST(ROUND(vat_amount) AS INTEGER),
+        total_amount = CAST(ROUND(total_amount) AS INTEGER)
+      WHERE subtotal IS NOT NULL
+         OR vat_rate IS NOT NULL
+         OR vat_amount IS NOT NULL
+         OR total_amount IS NOT NULL
+    ''');
+
+    await db.execute('''
+      UPDATE ocr_results
+      SET extracted_amount = CAST(ROUND(extracted_amount) AS INTEGER)
+      WHERE extracted_amount IS NOT NULL
+    ''');
   }
 
   Future _createDB(Database db, int version) async {
@@ -72,7 +165,8 @@ class LocalDatabase {
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT,
         phone TEXT,
-        status TEXT DEFAULT 'active',
+        status TEXT NOT NULL DEFAULT 'ACTIVE'
+          CHECK (status IN ('ACTIVE', 'DELETED')),
         created_at TEXT,
         updated_at TEXT,
         is_synced INTEGER DEFAULT 0
@@ -85,11 +179,13 @@ class LocalDatabase {
         category_id TEXT PRIMARY KEY,
         company_id TEXT REFERENCES companies(company_id),
         category_name TEXT NOT NULL,
-        category_type TEXT NOT NULL,
+        category_type TEXT NOT NULL
+          CHECK (category_type IN ('INCOME', 'EXPENSE')),
         icon_name TEXT,
         color_code TEXT,
         is_default INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'active',
+        status TEXT NOT NULL DEFAULT 'ACTIVE'
+          CHECK (status IN ('ACTIVE', 'DELETED')),
         created_at TEXT,
         updated_at TEXT,
         is_synced INTEGER DEFAULT 0
@@ -102,16 +198,19 @@ class LocalDatabase {
         invoice_id TEXT PRIMARY KEY,
         company_id TEXT REFERENCES companies(company_id),
         uploaded_by TEXT REFERENCES users(user_id),
+        invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
+          CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
         supplier_name TEXT,
         supplier_tax_code TEXT,
         invoice_number TEXT,
         invoice_date TEXT,
-        subtotal REAL,
-        vat_rate REAL,
-        vat_amount REAL,
-        total_amount REAL,
+        subtotal INTEGER,
+        vat_rate INTEGER,
+        vat_amount INTEGER,
+        total_amount INTEGER,
         image_path TEXT,
-        scan_status TEXT DEFAULT 'pending',
+        scan_status TEXT NOT NULL DEFAULT 'NOT_SCANNED'
+          CHECK (scan_status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR')),
         created_at TEXT,
         updated_at TEXT,
         is_synced INTEGER DEFAULT 0
@@ -126,12 +225,14 @@ class LocalDatabase {
         category_id TEXT REFERENCES categories(category_id),
         created_by TEXT REFERENCES users(user_id),
         invoice_id TEXT REFERENCES invoices(invoice_id),
-        amount REAL NOT NULL,
-        transaction_type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        transaction_type TEXT NOT NULL
+          CHECK (transaction_type IN ('INCOME', 'EXPENSE')),
         transaction_date TEXT NOT NULL,
         description TEXT,
         receipt_image_path TEXT,
-        status TEXT DEFAULT 'completed',
+        status TEXT NOT NULL DEFAULT 'ACTIVE'
+          CHECK (status IN ('ACTIVE', 'DELETED')),
         created_at TEXT,
         updated_at TEXT,
         is_synced INTEGER DEFAULT 0
@@ -141,6 +242,59 @@ class LocalDatabase {
     // 7. OCR_RESULT & 8. PDF_EXPORT
     await _createOcrResultsTable(db);
     await _createPdfExportsTable(db);
+    await _createIndexes(db);
+  }
+
+  Future<void> _createIndexes(Database db) async {
+    await db.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_active_invoice_idx
+      ON transactions(invoice_id)
+      WHERE invoice_id IS NOT NULL AND status = 'ACTIVE'
+    ''');
+    await db.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS categories_company_name_type_active_idx
+      ON categories(
+        COALESCE(company_id, ''),
+        LOWER(TRIM(category_name)),
+        category_type
+      )
+      WHERE status = 'ACTIVE'
+    ''');
+  }
+
+  Future<void> _deduplicateCategories(Database db) async {
+    final rows = await db.query(
+      'categories',
+      where: "status = 'ACTIVE'",
+      orderBy: 'created_at ASC, category_id ASC',
+    );
+    final canonicalIds = <String, String>{};
+
+    for (final row in rows) {
+      final categoryId = row['category_id'] as String;
+      final companyId = row['company_id'] as String? ?? '';
+      final name = (row['category_name'] as String).trim().toLowerCase();
+      final type = (row['category_type'] as String).toUpperCase();
+      final key = '$companyId\u0000$name\u0000$type';
+      final canonicalId = canonicalIds[key];
+
+      if (canonicalId == null) {
+        canonicalIds[key] = categoryId;
+        continue;
+      }
+
+      await db.update(
+        'transactions',
+        {'category_id': canonicalId, 'is_synced': 0},
+        where: 'category_id = ?',
+        whereArgs: [categoryId],
+      );
+      await db.delete(
+        'categories',
+        where: 'category_id = ?',
+        whereArgs: [categoryId],
+      );
+    }
   }
 
   Future<void> _createOcrResultsTable(Database db) async {
@@ -150,9 +304,10 @@ class LocalDatabase {
         invoice_id TEXT REFERENCES invoices(invoice_id) ON DELETE CASCADE,
         extracted_supplier_name TEXT,
         extracted_tax_code TEXT,
-        extracted_amount REAL,
+        extracted_amount INTEGER,
         raw_mock_data TEXT,
-        status TEXT DEFAULT 'processed',
+        status TEXT NOT NULL DEFAULT 'SCANNED'
+          CHECK (status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR')),
         scanned_at TEXT
       )
     ''');

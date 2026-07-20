@@ -1,126 +1,251 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/pdf_export_model.dart';
 import 'package:smart_finance/data/repositories/invoice_repository.dart';
+import 'package:smart_finance/data/services/pdf_file_saver.dart';
 
-/// Service xử lý xuất báo cáo hóa đơn ra file PDF.
-/// Hiện tại tạo file văn bản (.txt) để mô phỏng PDF (không cần thư viện ngoài).
-/// TODO: Thay thế bằng package `pdf` + `printing` khi muốn PDF thực sự.
 class PdfExportService {
-  final InvoiceRepository _invoiceRepo;
-
   PdfExportService(this._invoiceRepo);
 
-  /// Xuất hóa đơn ra file và lưu log vào bảng pdf_exports
+  final InvoiceRepository _invoiceRepo;
+
   Future<PdfExportModel?> exportInvoice({
     required InvoiceModel invoice,
     required String companyId,
     required String exportedBy,
     String exportType = 'invoice_pdf',
   }) async {
-    try {
-      // ── Bước 1: Tạo nội dung "PDF" (dạng text mô phỏng) ──
-      final content = _buildInvoiceContent(invoice);
-
-      // ── Bước 2: Lưu vào file hệ thống ──
-      final filePath = await _saveToFile(invoice.id, content);
-      debugPrint('PdfExportService: Saved export to $filePath');
-
-      // ── Bước 3: Ghi log vào bảng pdf_exports (local + Supabase) ──
-      final exportRecord = await _invoiceRepo.savePdfExport(
-        companyId: companyId,
-        exportedBy: exportedBy,
-        invoiceId: invoice.id,
-        exportType: exportType,
-        filePath: filePath,
-      );
-
-      return exportRecord;
-    } catch (e) {
-      debugPrint('PdfExportService.exportInvoice failed: $e');
-      return null;
-    }
-  }
-
-  /// Tạo nội dung hóa đơn dạng văn bản (mô phỏng PDF layout)
-  String _buildInvoiceContent(InvoiceModel invoice) {
-    final currencyFmt = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
-    final dateFmt = DateFormat('dd/MM/yyyy');
-    final now = dateFmt.format(DateTime.now());
-
-    final buffer = StringBuffer();
-    buffer.writeln('=' * 60);
-    buffer.writeln('                   HÓA ĐƠN ĐIỆN TỬ');
-    buffer.writeln('=' * 60);
-    buffer.writeln('');
-    buffer.writeln('Ngày xuất báo cáo  : $now');
-    buffer.writeln('Mã hóa đơn         : ${invoice.invoiceNumber ?? invoice.id.substring(0, 8).toUpperCase()}');
-    buffer.writeln('');
-    buffer.writeln('─' * 60);
-    buffer.writeln('THÔNG TIN NHÀ CUNG CẤP');
-    buffer.writeln('─' * 60);
-    buffer.writeln('Tên đơn vị         : ${invoice.supplierName ?? 'Chưa cập nhật'}');
-    buffer.writeln('Mã số thuế         : ${invoice.supplierTaxCode ?? 'Chưa cập nhật'}');
-    buffer.writeln('Ngày hóa đơn       : ${invoice.invoiceDate != null ? dateFmt.format(invoice.invoiceDate!) : 'Chưa cập nhật'}');
-    buffer.writeln('');
-    buffer.writeln('─' * 60);
-    buffer.writeln('CHI TIẾT THANH TOÁN');
-    buffer.writeln('─' * 60);
-    buffer.writeln('Tiền trước thuế    : ${invoice.subtotal != null ? currencyFmt.format(invoice.subtotal) : 'Chưa cập nhật'}');
-    buffer.writeln('Thuế suất VAT      : ${invoice.vatRate != null ? '${invoice.vatRate}%' : 'Chưa cập nhật'}');
-    buffer.writeln('Tiền thuế VAT      : ${invoice.vatAmount != null ? currencyFmt.format(invoice.vatAmount) : 'Chưa cập nhật'}');
-    buffer.writeln('─' * 30);
-    buffer.writeln('TỔNG CỘNG          : ${invoice.totalAmount != null ? currencyFmt.format(invoice.totalAmount) : 'Chưa cập nhật'}');
-    buffer.writeln('');
-    buffer.writeln('─' * 60);
-    buffer.writeln('Trạng thái quét    : ${_translateStatus(invoice.scanStatus)}');
-    buffer.writeln('Tạo lúc            : ${DateFormat('dd/MM/yyyy HH:mm').format(invoice.createdAt)}');
-    buffer.writeln('');
-    buffer.writeln('=' * 60);
-    buffer.writeln('   Được tạo bởi SmartFinance SME - Phần mềm kế toán SME');
-    buffer.writeln('=' * 60);
-
-    return buffer.toString();
-  }
-
-  String _translateStatus(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Chờ xử lý';
-      case 'scanning':
-        return 'Đang quét';
-      case 'processed':
-        return 'Đã xử lý';
-      case 'failed':
-        return 'Thất bại';
-      default:
-        return status;
-    }
-  }
-
-  /// Lưu nội dung file vào thư mục tài liệu của app
-  Future<String> _saveToFile(String invoiceId, String content) async {
-    Directory dir;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      dir = await getApplicationDocumentsDirectory();
-    } else {
-      dir = await getApplicationDocumentsDirectory();
-    }
-
-    final exportDir = Directory('${dir.path}/SmartFinance/exports');
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-
+    final bytes = await buildInvoicePdf(invoice);
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final filename = 'invoice_${invoiceId.substring(0, 8)}_$timestamp.txt';
-    final file = File('${exportDir.path}/$filename');
+    final shortId = invoice.id.length <= 8
+        ? invoice.id
+        : invoice.id.substring(0, 8);
+    final fileName = 'invoice_${shortId}_$timestamp.pdf';
 
-    await file.writeAsString(content, encoding: utf8);
-    return file.path;
+    final accepted = await Printing.layoutPdf(
+      name: fileName,
+      onLayout: (_) async => bytes,
+    );
+    if (!accepted) return null;
+
+    final filePath = await savePdfBytes(bytes, fileName);
+    debugPrint('PdfExportService: Saved PDF to $filePath');
+
+    return _invoiceRepo.savePdfExport(
+      companyId: companyId,
+      exportedBy: exportedBy,
+      invoiceId: invoice.id,
+      exportType: exportType,
+      filePath: filePath,
+    );
+  }
+
+  Future<Uint8List> buildInvoicePdf(InvoiceModel invoice) async {
+    final regularFont = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Roboto-Regular.ttf'),
+    );
+    final boldFont = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Roboto-Bold.ttf'),
+    );
+
+    final document = pw.Document(
+      theme: pw.ThemeData.withFont(base: regularFont, bold: boldFont),
+    );
+    final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+    final date = DateFormat('dd/MM/yyyy');
+
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'SmartFinance SME | ${context.pageNumber}/${context.pagesCount}',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+          ),
+        ),
+        build: (_) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'SMARTFINANCE SME',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.indigo700,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text('Quản lý dòng tiền doanh nghiệp'),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    'HÓA ĐƠN',
+                    style: pw.TextStyle(
+                      fontSize: 28,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    invoice.invoiceNumber ??
+                        invoice.id.substring(
+                          0,
+                          invoice.id.length < 8 ? invoice.id.length : 8,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 28),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              border: pw.Border.all(color: PdfColors.grey300),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _labelValue(
+                  'Nhà cung cấp',
+                  invoice.supplierName ?? 'Chưa cập nhật',
+                ),
+                _labelValue(
+                  'Mã số thuế',
+                  invoice.supplierTaxCode ?? 'Chưa cập nhật',
+                ),
+                _labelValue(
+                  'Ngày hóa đơn',
+                  invoice.invoiceDate == null
+                      ? 'Chưa cập nhật'
+                      : date.format(invoice.invoiceDate!),
+                ),
+                _labelValue(
+                  'Trạng thái quét',
+                  _translateStatus(invoice.scanStatus),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 28),
+          pw.Text(
+            'CHI TIẾT THANH TOÁN',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.indigo700,
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(3),
+              1: pw.FlexColumnWidth(2),
+            },
+            children: [
+              _amountRow(
+                'Tiền trước thuế',
+                currency.format(invoice.subtotal ?? 0),
+              ),
+              _amountRow('Thuế suất VAT', '${invoice.vatRate ?? 0}%'),
+              _amountRow(
+                'Tiền thuế VAT',
+                currency.format(invoice.vatAmount ?? 0),
+              ),
+              _amountRow(
+                'TỔNG CỘNG',
+                currency.format(invoice.totalAmount ?? 0),
+                emphasized: true,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 24),
+          pw.Text(
+            'Ngày xuất: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+          ),
+        ],
+      ),
+    );
+
+    return document.save();
+  }
+
+  static pw.Widget _labelValue(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 110,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(child: pw.Text(value)),
+        ],
+      ),
+    );
+  }
+
+  static pw.TableRow _amountRow(
+    String label,
+    String value, {
+    bool emphasized = false,
+  }) {
+    final style = pw.TextStyle(
+      fontWeight: emphasized ? pw.FontWeight.bold : pw.FontWeight.normal,
+      fontSize: emphasized ? 13 : 11,
+    );
+    return pw.TableRow(
+      decoration: emphasized
+          ? const pw.BoxDecoration(color: PdfColors.indigo50)
+          : null,
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(10),
+          child: pw.Text(label, style: style),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(10),
+          child: pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(value, style: style),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _translateStatus(InvoiceScanStatus status) {
+    switch (status) {
+      case InvoiceScanStatus.notScanned:
+        return 'Chưa quét';
+      case InvoiceScanStatus.scanning:
+        return 'Đang quét';
+      case InvoiceScanStatus.scanned:
+        return 'Đã quét';
+      case InvoiceScanStatus.error:
+        return 'Lỗi';
+    }
   }
 }

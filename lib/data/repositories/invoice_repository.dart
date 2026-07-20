@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:smart_finance/data/database/local_database.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
@@ -7,7 +6,6 @@ import 'package:smart_finance/data/models/pdf_export_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import 'package:path/path.dart' as p;
 
 class InvoiceRepository {
   final LocalDatabase _localDb = LocalDatabase.instance;
@@ -41,18 +39,41 @@ class InvoiceRepository {
     return InvoiceModel.fromMap(maps.first);
   }
 
+  Future<List<InvoiceModel>> getInvoicesByDateRange(
+    DateTime start,
+    DateTime end, {
+    required String companyId,
+  }) async {
+    final db = await _localDb.database;
+    final maps = await db.query(
+      'invoices',
+      where: 'company_id = ? AND invoice_date >= ? AND invoice_date <= ?',
+      whereArgs: [companyId, start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'invoice_date DESC',
+    );
+    return maps.map(InvoiceModel.fromMap).toList();
+  }
+
   Future<String> addInvoice(InvoiceModel invoice) async {
     final db = await _localDb.database;
     // 1. Save locally first (offline-first)
-    await db.insert('invoices', invoice.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'invoices',
+      invoice.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     // 2. Try to push to Supabase
     try {
       final map = invoice.toMap()..remove('is_synced');
       await _supabase.from('invoices').upsert(map);
       // Mark as synced
-      await db.update('invoices', {'is_synced': 1},
-          where: 'invoice_id = ?', whereArgs: [invoice.id]);
+      await db.update(
+        'invoices',
+        {'is_synced': 1},
+        where: 'invoice_id = ?',
+        whereArgs: [invoice.id],
+      );
     } catch (e) {
       debugPrint('InvoiceRepository.addInvoice Supabase sync failed: $e');
     }
@@ -61,15 +82,26 @@ class InvoiceRepository {
 
   Future<void> updateInvoice(InvoiceModel invoice) async {
     final db = await _localDb.database;
-    final updated = invoice.copyWith(updatedAt: DateTime.now(), isSynced: false);
-    await db.update('invoices', updated.toMap(),
-        where: 'invoice_id = ?', whereArgs: [invoice.id]);
+    final updated = invoice.copyWith(
+      updatedAt: DateTime.now(),
+      isSynced: false,
+    );
+    await db.update(
+      'invoices',
+      updated.toMap(),
+      where: 'invoice_id = ?',
+      whereArgs: [invoice.id],
+    );
 
     try {
       final map = updated.toMap()..remove('is_synced');
       await _supabase.from('invoices').upsert(map);
-      await db.update('invoices', {'is_synced': 1},
-          where: 'invoice_id = ?', whereArgs: [invoice.id]);
+      await db.update(
+        'invoices',
+        {'is_synced': 1},
+        where: 'invoice_id = ?',
+        whereArgs: [invoice.id],
+      );
     } catch (e) {
       debugPrint('InvoiceRepository.updateInvoice Supabase sync failed: $e');
     }
@@ -77,7 +109,11 @@ class InvoiceRepository {
 
   Future<void> deleteInvoice(String invoiceId) async {
     final db = await _localDb.database;
-    await db.delete('invoices', where: 'invoice_id = ?', whereArgs: [invoiceId]);
+    await db.delete(
+      'invoices',
+      where: 'invoice_id = ?',
+      whereArgs: [invoiceId],
+    );
     try {
       await _supabase.from('invoices').delete().eq('invoice_id', invoiceId);
     } catch (e) {
@@ -93,22 +129,34 @@ class InvoiceRepository {
   /// Trả về public URL của ảnh đã upload
   Future<String?> uploadInvoiceImage({
     required String invoiceId,
-    required String localFilePath,
+    required String companyId,
+    required Uint8List bytes,
+    required String fileName,
   }) async {
     try {
-      final file = File(localFilePath);
-      final ext = p.extension(localFilePath); // .jpg, .png, ...
-      final storagePath = 'invoices/$invoiceId$ext';
+      final lowerName = fileName.toLowerCase();
+      final extension = lowerName.endsWith('.png')
+          ? '.png'
+          : lowerName.endsWith('.webp')
+          ? '.webp'
+          : '.jpg';
+      final contentType = extension == '.png'
+          ? 'image/png'
+          : extension == '.webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+      final storagePath = '$companyId/$invoiceId$extension';
 
-      await _supabase.storage.from('invoices').upload(
+      await _supabase.storage
+          .from('invoices')
+          .uploadBinary(
             storagePath,
-            file,
-            fileOptions: const FileOptions(upsert: true),
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: contentType),
           );
 
-      final publicUrl = _supabase.storage.from('invoices').getPublicUrl(storagePath);
-      debugPrint('InvoiceRepository: Uploaded image → $publicUrl');
-      return publicUrl;
+      debugPrint('InvoiceRepository: Uploaded image → $storagePath');
+      return storagePath;
     } catch (e) {
       debugPrint('InvoiceRepository.uploadInvoiceImage failed: $e');
       return null; // Return null on failure, caller handles gracefully
@@ -183,8 +231,12 @@ class InvoiceRepository {
     try {
       final map = export.toMap()..remove('is_synced');
       await _supabase.from('pdf_exports').insert(map);
-      await db.update('pdf_exports', {'is_synced': 1},
-          where: 'pdf_export_id = ?', whereArgs: [export.pdfExportId]);
+      await db.update(
+        'pdf_exports',
+        {'is_synced': 1},
+        where: 'pdf_export_id = ?',
+        whereArgs: [export.pdfExportId],
+      );
     } catch (e) {
       debugPrint('InvoiceRepository.savePdfExport Supabase sync failed: $e');
     }
@@ -235,10 +287,10 @@ class InvoiceRepository {
       whereArgs: [cloudInvoice.id],
       limit: 1,
     );
-    
+
     if (localMaps.isNotEmpty) {
       final localInvoice = InvoiceModel.fromMap(localMaps.first);
-      if (!localInvoice.isSynced && 
+      if (!localInvoice.isSynced &&
           localInvoice.updatedAt.isAfter(cloudInvoice.updatedAt)) {
         return; // Bỏ qua, không ghi đè bản ghi local mới hơn
       }
@@ -246,6 +298,10 @@ class InvoiceRepository {
 
     final map = cloudInvoice.toMap();
     map['is_synced'] = 1;
-    await db.insert('invoices', map, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'invoices',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }

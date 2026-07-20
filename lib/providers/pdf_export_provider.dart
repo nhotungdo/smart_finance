@@ -11,9 +11,10 @@ final pdfExportServiceProvider = Provider<PdfExportService>((ref) {
   return PdfExportService(invoiceRepo);
 });
 
-final pdfExportProvider = AsyncNotifierProvider<PdfExportNotifier, PdfExportModel?>(() {
-  return PdfExportNotifier();
-});
+final pdfExportProvider =
+    AsyncNotifierProvider<PdfExportNotifier, PdfExportModel?>(() {
+      return PdfExportNotifier();
+    });
 
 class PdfExportNotifier extends AsyncNotifier<PdfExportModel?> {
   late final PdfExportService _service;
@@ -25,17 +26,29 @@ class PdfExportNotifier extends AsyncNotifier<PdfExportModel?> {
   }
 
   /// Xuất hóa đơn ra file và ghi log vào bảng pdf_exports
-  Future<void> exportInvoice(InvoiceModel invoice) async {
+  Future<PdfExportModel?> exportInvoice(InvoiceModel invoice) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final user = ref.read(currentUserProvider);
-      return await _service.exportInvoice(
+      final profile = await ref.read(currentUserProfileProvider.future);
+      if (user == null || profile?.companyId == null) {
+        throw StateError('Tài khoản chưa có hồ sơ doanh nghiệp.');
+      }
+      if (profile!.companyId != invoice.companyId) {
+        throw StateError('Không thể xuất hóa đơn của doanh nghiệp khác.');
+      }
+      return _service.exportInvoice(
         invoice: invoice,
         companyId: invoice.companyId,
-        exportedBy: user?.id ?? 'unknown',
+        exportedBy: user.id,
         exportType: 'invoice_pdf',
       );
     });
+
+    if (state.hasError) {
+      Error.throwWithStackTrace(state.error!, state.stackTrace!);
+    }
+    return state.value;
   }
 
   void reset() {

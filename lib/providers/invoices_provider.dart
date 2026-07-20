@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
+import 'package:smart_finance/data/models/ocr_result_model.dart';
 import 'package:smart_finance/data/repositories/invoice_repository.dart';
 import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -9,47 +12,95 @@ final invoiceRepositoryProvider = Provider<InvoiceRepository>((ref) {
   return InvoiceRepository();
 });
 
-final invoicesProvider = AsyncNotifierProvider<InvoicesNotifier, List<InvoiceModel>>(() {
-  return InvoicesNotifier();
+final invoicesProvider =
+    AsyncNotifierProvider<InvoicesNotifier, List<InvoiceModel>>(() {
+      return InvoicesNotifier();
+    });
+
+class InvoiceSummary {
+  const InvoiceSummary({
+    required this.totalValue,
+    required this.pendingValue,
+    required this.invoiceCount,
+    required this.pendingCount,
+  });
+
+  final int totalValue;
+  final int pendingValue;
+  final int invoiceCount;
+  final int pendingCount;
+
+  factory InvoiceSummary.fromInvoices(List<InvoiceModel> invoices) {
+    var totalValue = 0;
+    var pendingValue = 0;
+    var pendingCount = 0;
+
+    for (final invoice in invoices) {
+      final amount = invoice.totalAmount ?? 0;
+      final safeAmount = amount > 0 ? amount : 0;
+      totalValue += safeAmount;
+
+      if (invoice.scanStatus != InvoiceScanStatus.scanned) {
+        pendingValue += safeAmount;
+        pendingCount++;
+      }
+    }
+
+    return InvoiceSummary(
+      totalValue: totalValue,
+      pendingValue: pendingValue,
+      invoiceCount: invoices.length,
+      pendingCount: pendingCount,
+    );
+  }
+}
+
+final invoiceSummaryProvider = Provider<InvoiceSummary>((ref) {
+  final invoices = ref.watch(invoicesProvider).value ?? const <InvoiceModel>[];
+  return InvoiceSummary.fromInvoices(invoices);
 });
 
 class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
-  late final InvoiceRepository _repository;
+  InvoiceRepository get _repository => ref.read(invoiceRepositoryProvider);
 
   @override
   FutureOr<List<InvoiceModel>> build() async {
-    _repository = ref.read(invoiceRepositoryProvider);
     return _fetchInvoices();
   }
 
   Future<List<InvoiceModel>> _fetchInvoices() async {
-    final user = ref.read(currentUserProvider);
-    // Dùng user.id tạm thời làm company_id (sẽ cập nhật sau khi có profile đầy đủ)
-    final companyId = user?.id ?? '';
-    if (companyId.isEmpty) return [];
-    return await _repository.getInvoices(companyId);
+    final profile = await ref.read(currentUserProfileProvider.future);
+    final companyId = profile?.companyId;
+    if (companyId == null) return [];
+    return _repository.getInvoices(companyId);
   }
 
   /// Tạo hóa đơn mới và lưu lên cả local + Supabase
   Future<String> createInvoice({
+    TransactionType invoiceType = TransactionType.expense,
     String? supplierName,
     String? supplierTaxCode,
     String? invoiceNumber,
     DateTime? invoiceDate,
-    double? subtotal,
-    double? vatRate,
-    double? vatAmount,
-    double? totalAmount,
+    int? subtotal,
+    int? vatRate,
+    int? vatAmount,
+    int? totalAmount,
     String? imagePath,
   }) async {
     final user = ref.read(currentUserProvider);
-    final companyId = user?.id ?? '';
+    final profile = await ref.read(currentUserProfileProvider.future);
+    final companyId = profile?.companyId;
+    if (user == null || companyId == null) {
+      throw StateError('Tài khoản chưa có hồ sơ doanh nghiệp.');
+    }
     final now = DateTime.now();
 
     final invoice = InvoiceModel(
       id: const Uuid().v4(),
       companyId: companyId,
-      uploadedBy: user?.id ?? '',
+      uploadedBy: user.id,
+      invoiceType: invoiceType,
       supplierName: supplierName,
       supplierTaxCode: supplierTaxCode,
       invoiceNumber: invoiceNumber,
@@ -59,7 +110,7 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
       vatAmount: vatAmount,
       totalAmount: totalAmount,
       imagePath: imagePath,
-      scanStatus: 'pending',
+      scanStatus: InvoiceScanStatus.notScanned,
       createdAt: now,
       updatedAt: now,
       isSynced: false,
@@ -80,6 +131,46 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
       await _repository.addInvoice(invoice);
       return _fetchInvoices();
     });
+  }
+
+  Future<void> saveReviewedInvoice({
+    required InvoiceModel invoice,
+    Uint8List? imageBytes,
+    String? imageFileName,
+    String? localImagePath,
+    OcrResultModel? ocrResult,
+  }) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _repository.addInvoice(invoice);
+
+      var savedInvoice = invoice;
+      if (imageBytes != null && imageFileName != null) {
+        final imageUrl = await _repository.uploadInvoiceImage(
+          invoiceId: invoice.id,
+          companyId: invoice.companyId,
+          bytes: imageBytes,
+          fileName: imageFileName,
+        );
+        savedInvoice = invoice.copyWith(
+          imagePath: imageUrl ?? localImagePath,
+          updatedAt: DateTime.now(),
+        );
+        await _repository.updateInvoice(savedInvoice);
+      }
+
+      if (ocrResult != null) {
+        await _repository.saveOcrResult(
+          ocrResult.copyWith(invoiceId: savedInvoice.id),
+        );
+      }
+
+      return _fetchInvoices();
+    });
+
+    if (state.hasError) {
+      Error.throwWithStackTrace(state.error!, state.stackTrace!);
+    }
   }
 
   Future<void> updateInvoice(InvoiceModel invoice) async {

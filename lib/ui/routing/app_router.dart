@@ -6,6 +6,8 @@ import 'package:smart_finance/ui/screens/auth/register_screen.dart';
 import 'package:smart_finance/ui/screens/auth/forgot_password_screen.dart';
 import 'package:smart_finance/ui/screens/dashboard/dashboard_screen.dart';
 import 'package:smart_finance/ui/screens/expenses/expenses_screen.dart';
+import 'package:smart_finance/ui/screens/expenses/transaction_detail_screen.dart';
+import 'package:smart_finance/ui/screens/expenses/transactions_history_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoicing_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/create_invoice_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoice_preview_screen.dart';
@@ -13,10 +15,15 @@ import 'package:smart_finance/ui/screens/invoicing/invoice_sent_screen.dart';
 import 'package:smart_finance/ui/screens/reports/reports_screen.dart';
 import 'package:smart_finance/ui/screens/settings/settings_screen.dart';
 import 'package:smart_finance/ui/widgets/main_layout.dart';
+import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
+Page<void> _shellPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
 
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
@@ -36,21 +43,16 @@ final appRouter = GoRouter(
     }
 
     // Nếu đã đăng nhập và đang vào trang login/register/splash → vào Dashboard
-    if (isLoggedIn && (path == '/login' || path == '/register' || path == '/')) {
+    if (isLoggedIn &&
+        (path == '/login' || path == '/register' || path == '/')) {
       return '/dashboard';
     }
 
     return null; // Không cần redirect
   },
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const SplashScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -67,23 +69,44 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(
           path: '/dashboard',
-          builder: (context, state) => const DashboardScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const DashboardScreen()),
         ),
         GoRoute(
           path: '/expenses',
-          builder: (context, state) => const ExpensesScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const ExpensesScreen()),
+          routes: [
+            GoRoute(
+              path: 'history',
+              builder: (context, state) => const TransactionsHistoryScreen(),
+            ),
+            GoRoute(
+              path: ':transactionId',
+              builder: (context, state) => TransactionDetailScreen(
+                transactionId: state.pathParameters['transactionId']!,
+              ),
+            ),
+          ],
         ),
         GoRoute(
           path: '/invoicing',
-          builder: (context, state) => const InvoicingScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const InvoicingScreen()),
         ),
         GoRoute(
           path: '/invoicing/create',
-          builder: (context, state) => const CreateInvoiceScreen(),
+          builder: (context, state) => CreateInvoiceScreen(
+            sourceTransaction: state.extra is TransactionModel
+                ? state.extra! as TransactionModel
+                : null,
+          ),
         ),
         GoRoute(
-          path: '/invoicing/preview',
-          builder: (context, state) => const InvoicePreviewScreen(),
+          path: '/invoicing/preview/:invoiceId',
+          builder: (context, state) => InvoicePreviewScreen(
+            invoiceId: state.pathParameters['invoiceId']!,
+          ),
         ),
         GoRoute(
           path: '/invoicing/sent',
@@ -91,11 +114,13 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/reports',
-          builder: (context, state) => const ReportsScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const ReportsScreen()),
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+          pageBuilder: (context, state) =>
+              _shellPage(state, const SettingsScreen()),
         ),
       ],
     ),
