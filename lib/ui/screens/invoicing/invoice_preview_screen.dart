@@ -414,7 +414,7 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isScanned
-            ? const Color(0xFF10B981).withValues(alpha: 0.12)
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
             : theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(8),
       ),
@@ -422,7 +422,7 @@ class _StatusBadge extends StatelessWidget {
         isScanned ? 'Đã quét' : 'Chờ xử lý',
         style: theme.textTheme.labelSmall?.copyWith(
           color: isScanned
-              ? const Color(0xFF047857)
+              ? theme.colorScheme.primary
               : theme.colorScheme.onSecondaryContainer,
           fontWeight: FontWeight.w700,
         ),

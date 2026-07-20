@@ -60,7 +60,7 @@ class _TransactionDetails extends ConsumerWidget {
     final isExpense = transaction.transactionType == TransactionType.expense;
     final accentColor = isExpense
         ? theme.colorScheme.error
-        : const Color(0xFF10B981);
+        : theme.colorScheme.primary;
     final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
     final date = DateFormat('dd/MM/yyyy');
     final dateTime = DateFormat('dd/MM/yyyy HH:mm');

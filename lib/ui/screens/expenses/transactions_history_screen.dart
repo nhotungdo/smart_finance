@@ -116,7 +116,7 @@ class _DesktopHistory extends StatelessWidget {
                   transaction.transactionType == TransactionType.expense;
               final amountColor = isExpense
                   ? theme.colorScheme.error
-                  : const Color(0xFF10B981);
+                  : theme.colorScheme.primary;
               final category = _findCategory(
                 categories,
                 transaction.categoryId,
@@ -196,7 +196,7 @@ class _HistoryTile extends StatelessWidget {
     final isExpense = transaction.transactionType == TransactionType.expense;
     final amountColor = isExpense
         ? theme.colorScheme.error
-        : const Color(0xFF10B981);
+        : theme.colorScheme.primary;
     final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
 
     return InkWell(

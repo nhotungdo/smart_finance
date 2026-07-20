@@ -168,7 +168,7 @@ class _OverdueCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final summary = ref.watch(invoiceSummaryProvider);
-    const pendingColor = Color(0xFFF59E0B);
+    final pendingColor = theme.colorScheme.secondary;
     final currency = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: '₫',
@@ -197,7 +197,7 @@ class _OverdueCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.pending_actions_rounded, color: pendingColor),
+              Icon(Icons.pending_actions_rounded, color: pendingColor),
             ],
           ),
           const SizedBox(height: 12),
@@ -754,11 +754,11 @@ class _InvoiceListCard extends ConsumerWidget {
   Widget _buildStatusBadge(ThemeData theme, String status) {
     final isDone = status == 'Hoàn tất';
     final bgColor = isDone
-        ? const Color(0xFF10B981).withValues(alpha: 0.1)
-        : const Color(0xFFF59E0B).withValues(alpha: 0.1);
+        ? theme.colorScheme.primary.withValues(alpha: 0.1)
+        : theme.colorScheme.secondary.withValues(alpha: 0.1);
     final textColor = isDone
-        ? const Color(0xFF10B981)
-        : const Color(0xFFF59E0B);
+        ? theme.colorScheme.primary
+        : theme.colorScheme.secondary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
-    const primaryColor = Color(0xFF4F46E5); // Indigo
-    const secondaryColor = Color(0xFF10B981); // Emerald/Teal
+    const primaryColor = Colors.black;
+    const secondaryColor = Color(0xFF333333); // Dark grey
     const surfaceColor = Colors.white;
     const bgColor = Color(0xFFF8FAFC); // Very light slate
     const textPrimary = Color(0xFF0F172A);
@@ -133,8 +133,8 @@ class AppTheme {
   }
 
   static ThemeData get darkTheme {
-    const primaryColor = Color(0xFF6366F1); // Indigo 500
-    const secondaryColor = Color(0xFF10B981); // Emerald 500
+    const primaryColor = Colors.white;
+    const secondaryColor = Color(0xFFCCCCCC); // Light grey
     const surfaceColor = Color(0xFF1E293B); // Slate 800
     const bgColor = Color(0xFF0F172A); // Slate 900
     const textPrimary = Color(0xFFF8FAFC); // Slate 50

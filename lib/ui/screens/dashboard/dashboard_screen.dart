@@ -69,7 +69,7 @@ class DashboardScreen extends ConsumerWidget {
                                       ),
                                       backgroundColor: finalState.error != null
                                           ? theme.colorScheme.error
-                                          : const Color(0xFF10B981),
+                                          : theme.colorScheme.primary,
                                       behavior: SnackBarBehavior.floating,
                                     ),
                                   );
@@ -136,6 +136,7 @@ class DashboardScreen extends ConsumerWidget {
 class _StatThuTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final summaryAsync = ref.watch(financialSummaryProvider);
     final currencyFmt = NumberFormat.compactCurrency(
       locale: 'vi_VN',
@@ -148,13 +149,13 @@ class _StatThuTile extends ConsumerWidget {
       error: (e, _) => BentoCard(child: Center(child: Text('Lỗi'))),
       data: (summary) => BentoCard(
         showAccentStrip: true,
-        accentColor: const Color(0xFF10B981),
+        accentColor: theme.colorScheme.primary,
         padding: const EdgeInsets.all(20),
         child: BentoIconTile(
           icon: Icons.trending_up_rounded,
           label: 'Tổng thu',
           value: currencyFmt.format(summary.totalIncome),
-          accentColor: const Color(0xFF10B981),
+          accentColor: theme.colorScheme.primary,
           subtitle: 'Tháng này',
         ),
       ),
@@ -210,7 +211,7 @@ class _StatDongTienTile extends ConsumerWidget {
         final isPositive = summary.cashFlow >= 0;
         final color = isPositive
             ? theme.colorScheme.primary
-            : const Color(0xFFF59E0B);
+            : theme.colorScheme.secondary;
         return BentoCard(
           showAccentStrip: true,
           accentColor: color,
@@ -255,7 +256,7 @@ class _CashFlowChartTile extends ConsumerWidget {
             subtitle: '7 ngày gần nhất',
             action: Row(
               children: [
-                _LegendDot(color: const Color(0xFF10B981), label: 'Thu'),
+                _LegendDot(color: theme.colorScheme.primary, label: 'Thu'),
                 const SizedBox(width: 8),
                 _LegendDot(color: theme.colorScheme.error, label: 'Chi'),
               ],
@@ -383,7 +384,7 @@ class _CashFlowChartTile extends ConsumerWidget {
                         barRods: [
                           BarChartRodData(
                             toY: p.income.toDouble(),
-                            color: const Color(0xFF10B981),
+                            color: theme.colorScheme.primary,
                             width: 14,
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(6),
@@ -496,7 +497,7 @@ class _RecentTransactionsTile extends ConsumerWidget {
                     final isIncome =
                         tx.transactionType == TransactionType.income;
                     final color = isIncome
-                        ? const Color(0xFF10B981)
+                        ? theme.colorScheme.primary
                         : theme.colorScheme.error;
 
                     return Row(
@@ -631,7 +632,7 @@ class _GroupedTransactionsTile extends ConsumerWidget {
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: dayTotal >= 0
-                                    ? const Color(0xFF10B981)
+                                    ? theme.colorScheme.primary
                                     : theme.colorScheme.error,
                               ),
                             ),
@@ -642,7 +643,7 @@ class _GroupedTransactionsTile extends ConsumerWidget {
                           final isIncome =
                               tx.transactionType == TransactionType.income;
                           final color = isIncome
-                              ? const Color(0xFF10B981)
+                              ? theme.colorScheme.primary
                               : theme.colorScheme.error;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),

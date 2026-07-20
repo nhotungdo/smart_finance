@@ -398,7 +398,7 @@ class _ExpensesListCard extends ConsumerWidget {
                             final amountColor =
                                 tx.transactionType == TransactionType.expense
                                 ? theme.colorScheme.error
-                                : const Color(0xFF10B981);
+                                : theme.colorScheme.primary;
 
                             return DataRow(
                               onSelectChanged: (_) =>
@@ -536,7 +536,7 @@ class _ExpensesListCard extends ConsumerWidget {
                       final amountColor =
                           tx.transactionType == TransactionType.expense
                           ? theme.colorScheme.error
-                          : const Color(0xFF10B981);
+                          : theme.colorScheme.primary;
 
                       return Dismissible(
                         key: ValueKey(tx.transactionId),

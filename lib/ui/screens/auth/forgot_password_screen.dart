@@ -149,9 +149,7 @@ class _FormView extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF4F46E5)],
-                  ),
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child:
@@ -174,15 +172,11 @@ class _FormView extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.25),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -215,7 +209,7 @@ class _FormView extends StatelessWidget {
           // Email input bento
           BentoCard(
             showAccentStrip: true,
-            accentColor: const Color(0xFFF59E0B),
+            accentColor: theme.colorScheme.primary,
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,11 +219,11 @@ class _FormView extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.email_outlined,
-                          color: Color(0xFFF59E0B), size: 18),
+                      child: Icon(Icons.email_outlined,
+                          color: theme.colorScheme.primary, size: 18),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -278,10 +272,10 @@ class _FormView extends StatelessWidget {
                     style: theme.textTheme.bodyMedium),
                 SmartButton.text(
                   onPressed: () => context.go('/login'),
-                  child: const Text(
+                  child: Text(
                     'Đăng nhập',
                     style: TextStyle(
-                      color: Color(0xFF6C63FF),
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -321,7 +315,7 @@ class _SuccessView extends StatelessWidget {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -329,15 +323,11 @@ class _SuccessView extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: theme.colorScheme.primary,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.25),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -370,7 +360,7 @@ class _SuccessView extends StatelessWidget {
         Text(
           email,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: const Color(0xFF6C63FF),
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.w700,
           ),
           textAlign: TextAlign.center,
@@ -381,8 +371,8 @@ class _SuccessView extends StatelessWidget {
         BentoCard(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFF10B981).withValues(alpha: 0.06),
-              const Color(0xFF10B981).withValues(alpha: 0.02),
+              theme.colorScheme.primary.withValues(alpha: 0.06),
+              theme.colorScheme.primary.withValues(alpha: 0.02),
             ],
           ),
           padding: const EdgeInsets.all(24),
@@ -391,19 +381,19 @@ class _SuccessView extends StatelessWidget {
               _InfoRow(
                 icon: Icons.access_time_rounded,
                 text: 'Liên kết có hiệu lực trong 24 giờ',
-                color: const Color(0xFF10B981),
+                color: theme.colorScheme.primary,
               ),
               const SizedBox(height: 14),
               _InfoRow(
                 icon: Icons.inbox_rounded,
                 text: 'Kiểm tra cả thư mục Spam nếu không thấy email',
-                color: const Color(0xFFF59E0B),
+                color: theme.colorScheme.primary,
               ),
               const SizedBox(height: 14),
               _InfoRow(
                 icon: Icons.security_rounded,
                 text: 'Không chia sẻ liên kết này với bất kỳ ai',
-                color: const Color(0xFFEF4444),
+                color: theme.colorScheme.primary,
               ),
             ],
           ),

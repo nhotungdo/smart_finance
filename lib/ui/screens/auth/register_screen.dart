@@ -195,7 +195,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     // ── Account Info Bento ─────────────────────────────
                     BentoCard(
                       showAccentStrip: true,
-                      accentColor: const Color(0xFF10B981),
+                      accentColor: theme.colorScheme.primary,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

@@ -218,7 +218,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget _buildPieChartCard(ThemeData theme, ReportDataExtended ext) {
     return BentoCard(
       showAccentStrip: true,
-      accentColor: const Color(0xFF10B981),
+      accentColor: theme.colorScheme.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -249,7 +249,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ) {
     return BentoCard(
       showAccentStrip: true,
-      accentColor: const Color(0xFF0EA5E9),
+      accentColor: theme.colorScheme.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -460,7 +460,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 r.isPositive ? Icons.trending_up : Icons.trending_down,
                 size: 14,
                 color: r.isPositive
-                    ? Colors.green.shade600
+                    ? theme.colorScheme.primary
                     : theme.colorScheme.error,
               ),
               const SizedBox(width: 4),
@@ -468,7 +468,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 r.trend,
                 style: base?.copyWith(
                   color: r.isPositive
-                      ? Colors.green.shade600
+                      ? theme.colorScheme.primary
                       : theme.colorScheme.error,
                 ),
               ),
@@ -525,7 +525,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         r.isPositive ? Icons.trending_up : Icons.trending_down,
                         size: 12,
                         color: r.isPositive
-                            ? Colors.green.shade600
+                            ? theme.colorScheme.primary
                             : theme.colorScheme.error,
                       ),
                       const SizedBox(width: 2),
@@ -533,7 +533,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         r.trend,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: r.isPositive
-                              ? Colors.green.shade600
+                              ? theme.colorScheme.primary
                               : theme.colorScheme.error,
                           fontWeight: FontWeight.w600,
                         ),
@@ -903,13 +903,13 @@ class _InvoiceComparisonChart extends StatelessWidget {
       'Hóa đơn Chi trước thuế',
       'VAT hóa đơn Chi',
     ];
-    const colors = [
-      Color(0xFF10B981),
-      Color(0xFFEF4444),
-      Color(0xFF2563EB),
-      Color(0xFF06B6D4),
-      Color(0xFFF59E0B),
-      Color(0xFFEC4899),
+    final colors = [
+      theme.colorScheme.primary,
+      theme.colorScheme.error,
+      theme.colorScheme.primary.withValues(alpha: 0.8),
+      theme.colorScheme.primary.withValues(alpha: 0.5),
+      theme.colorScheme.error.withValues(alpha: 0.8),
+      theme.colorScheme.error.withValues(alpha: 0.5),
     ];
     final maximum = values.fold<int>(
       0,

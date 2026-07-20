@@ -234,11 +234,11 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                       backgroundColor: theme.colorScheme.surface,
                       selectedBackgroundColor:
                           _transactionType == TransactionType.income
-                          ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                          ? theme.colorScheme.primary.withValues(alpha: 0.2)
                           : theme.colorScheme.error.withValues(alpha: 0.2),
                       selectedForegroundColor:
                           _transactionType == TransactionType.income
-                          ? const Color(0xFF10B981)
+                          ? theme.colorScheme.primary
                           : theme.colorScheme.error,
                     ),
                   ),
