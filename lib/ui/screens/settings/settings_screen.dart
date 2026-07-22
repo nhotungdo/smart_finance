@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/providers/theme_provider.dart';
 import 'package:smart_finance/providers/sync_provider.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
-import 'package:smart_finance/ui/widgets/sync_status_indicator.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -14,7 +13,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = ref.watch(currentUserProvider);
     final isDark = theme.brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -40,7 +39,14 @@ class SettingsScreen extends ConsumerWidget {
                     Container(
                       height: 80,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF6C63FF),
+                            const Color(0xFF4F46E5),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(28),
                         ),
@@ -57,13 +63,22 @@ class SettingsScreen extends ConsumerWidget {
                               width: 72,
                               height: 72,
                               decoration: BoxDecoration(
-                                color: Colors.blue,
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF6C63FF),
+                                    Color(0xFF8B5CF6),
+                                  ],
+                                ),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: theme.colorScheme.surface, width: 4),
+                                  color: theme.colorScheme.surface,
+                                  width: 4,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.blue.withValues(alpha: 0.3),
+                                    color: const Color(
+                                      0xFF6C63FF,
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 16,
                                     offset: const Offset(0, 6),
                                   ),
@@ -92,10 +107,13 @@ class SettingsScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 5),
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary
-                                    .withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFF10B981,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Row(
@@ -104,16 +122,16 @@ class SettingsScreen extends ConsumerWidget {
                                   Container(
                                     width: 7,
                                     height: 7,
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF10B981),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
+                                  const Text(
                                     'Đang hoạt động',
                                     style: TextStyle(
-                                      color: theme.colorScheme.primary,
+                                      color: Color(0xFF10B981),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -126,24 +144,45 @@ class SettingsScreen extends ConsumerWidget {
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 onPressed: () async {
-                                  await Supabase.instance.client.auth.signOut();
-                                  if (context.mounted) context.go('/login');
+                                  await ref
+                                      .read(authNotifierProvider.notifier)
+                                      .signOut();
+                                  if (!context.mounted) return;
+                                  final authState = ref.read(
+                                    authNotifierProvider,
+                                  );
+                                  if (authState.hasError) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Không thể đăng xuất: ${authState.error}',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  context.go('/login');
                                 },
-                                icon: Icon(Icons.logout_rounded,
-                                    color: theme.colorScheme.error, size: 18),
-                                label: Text(
+                                icon: const Icon(
+                                  Icons.logout_rounded,
+                                  color: Color(0xFFEF4444),
+                                  size: 18,
+                                ),
+                                label: const Text(
                                   'Đăng xuất',
                                   style: TextStyle(
-                                    color: theme.colorScheme.error,
+                                    color: Color(0xFFEF4444),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   side: BorderSide(
-                                    color: theme.colorScheme.error
-                                        .withValues(alpha: 0.4),
+                                    color: const Color(
+                                      0xFFEF4444,
+                                    ).withValues(alpha: 0.4),
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
@@ -164,7 +203,7 @@ class SettingsScreen extends ConsumerWidget {
               // ── Appearance card ──────────────────────────────────────────
               BentoCard(
                 showAccentStrip: true,
-                accentColor: theme.colorScheme.primary,
+                accentColor: const Color(0xFF8B5CF6),
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,14 +211,14 @@ class SettingsScreen extends ConsumerWidget {
                     _SectionHeader(
                       icon: Icons.palette_rounded,
                       label: 'Giao diện',
-                      color: theme.colorScheme.primary,
+                      color: const Color(0xFF8B5CF6),
                     ),
                     const SizedBox(height: 20),
                     _SettingsRow(
                       icon: isDark
                           ? Icons.dark_mode_rounded
                           : Icons.light_mode_rounded,
-                      iconBg: theme.colorScheme.primary,
+                      iconBg: const Color(0xFF8B5CF6),
                       title: 'Chế độ tối',
                       subtitle: isDark
                           ? 'Đang bật – Dark Mode'
@@ -188,48 +227,7 @@ class SettingsScreen extends ConsumerWidget {
                         value: isDark,
                         onChanged: (_) =>
                             ref.read(themeProvider.notifier).toggleTheme(),
-                        activeThumbColor: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _ThemePreviewChip(
-                              label: '☀️ Sáng',
-                              isSelected: !isDark,
-                              color: theme.colorScheme.primary,
-                              onTap: () {
-                                if (isDark) {
-                                  ref
-                                      .read(themeProvider.notifier)
-                                      .toggleTheme();
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _ThemePreviewChip(
-                              label: '🌙 Tối',
-                              isSelected: isDark,
-                              color: theme.colorScheme.primary,
-                              onTap: () {
-                                if (!isDark) {
-                                  ref
-                                      .read(themeProvider.notifier)
-                                      .toggleTheme();
-                                }
-                              },
-                            ),
-                          ),
-                        ],
+                        activeThumbColor: const Color(0xFF8B5CF6),
                       ),
                     ),
                   ],
@@ -240,80 +238,68 @@ class SettingsScreen extends ConsumerWidget {
               // ── Sync card ────────────────────────────────────────────────
               BentoCard(
                 showAccentStrip: true,
-                accentColor: theme.colorScheme.primary,
+                accentColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionHeader(
-                      icon: Icons.sync_rounded,
-                      label: 'Đồng bộ Dữ liệu',
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 20),
-                    _SettingsRow(
-                      icon: Icons.cloud_sync_outlined,
-                      iconBg: theme.colorScheme.primary,
-                      title: 'Trạng thái đồng bộ',
-                      subtitle: 'Tự động đồng bộ khi có kết nối mạng',
-                      trailing: const SyncStatusIndicator(),
-                    ),
-                    const SizedBox(height: 16),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final syncState = ref.watch(syncNotifierProvider);
-                        final isSync = syncState.isLoading;
-                        return SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: isSync
-                                ? null
-                                : () async {
-                                    await ref
-                                        .read(syncNotifierProvider.notifier)
-                                        .syncNow();
-                                    if (context.mounted) {
-                                      final s = ref.read(syncNotifierProvider);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                        content: Text(
-                                          s.error != null
-                                              ? 'Lỗi đồng bộ: ${s.error}'
-                                              : '✅ Đồng bộ thành công!',
-                                        ),
-                                        backgroundColor: s.error != null
-                                            ? theme.colorScheme.error
-                                            : theme.colorScheme.primary,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                      ));
-                                    }
-                                  },
-                            icon: isSync
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.sync_rounded, size: 18),
-                            label: Text(isSync ? 'Đang đồng bộ…' : 'Đồng bộ ngay'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: theme.colorScheme.primary,
-                              side: BorderSide(
-                                  color: theme.colorScheme.primary
-                                      .withValues(alpha: 0.4)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final syncState = ref.watch(syncNotifierProvider);
+                    final isSync = syncState.isLoading;
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: isSync
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(syncNotifierProvider.notifier)
+                                    .syncNow();
+                                if (context.mounted) {
+                                  final s = ref.read(syncNotifierProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        s.error != null
+                                            ? 'Lỗi đồng bộ: ${s.error}'
+                                            : 'Đồng bộ thành công!',
+                                      ),
+                                      backgroundColor: s.error != null
+                                          ? theme.colorScheme.error
+                                          : const Color(0xFF10B981),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: isSync
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.sync_rounded, size: 18),
+                        label: Text(
+                          isSync ? 'Đang đồng bộ…' : 'Đồng bộ dữ liệu',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF3B82F6),
+                          side: BorderSide(
+                            color: const Color(
+                              0xFF3B82F6,
+                            ).withValues(alpha: 0.4),
                           ),
-                        );
-                      },
-                    ),
-                  ],
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -327,7 +313,7 @@ class SettingsScreen extends ConsumerWidget {
                     _SectionHeader(
                       icon: Icons.info_outline_rounded,
                       label: 'Giới thiệu',
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: const Color(0xFF64748B),
                     ),
                     const SizedBox(height: 20),
                     _InfoTile(
@@ -365,8 +351,11 @@ class _SectionHeader extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  const _SectionHeader(
-      {required this.icon, required this.label, required this.color});
+  const _SectionHeader({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -427,12 +416,18 @@ class _SettingsRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              Text(subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+              Text(
+                title,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -442,56 +437,15 @@ class _SettingsRow extends StatelessWidget {
   }
 }
 
-class _ThemePreviewChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ThemePreviewChip({
-    required this.label,
-    required this.isSelected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: isSelected
-              ? null
-              : Border.all(
-                  color: color.withValues(alpha: 0.3),
-                ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? theme.colorScheme.onPrimary : color,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _InfoTile(
-      {required this.label, required this.value, required this.icon});
+  const _InfoTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -500,17 +454,26 @@ class _InfoTile extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 10),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

@@ -1,4 +1,3 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_finance/data/models/category_model.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
@@ -135,49 +134,13 @@ ReportData _computeReport(
   ReportPeriod period,
   ReportDateRange range,
 ) {
-  final defaultColors = [
-    '#3B82F6',
-    '#10B981',
-    '#F59E0B',
-    '#EF4444',
-    '#8B5CF6',
-    '#6B7280',
-    '#F97316',
-    '#06B6D4',
-  ];
-  final totalIncome = FinanceCalculator.totalIncome(txList);
-  final totalExpense = FinanceCalculator.totalExpense(txList);
-  final Map<String, int> expByCategory = {};
-
-  for (final tx in txList) {
-    if (tx.transactionType == TransactionType.expense) {
-      final k = tx.categoryId ?? 'uncategorized';
-      expByCategory[k] = (expByCategory[k] ?? 0) + tx.amount;
-    }
-  }
-
-  int ci = 0;
-  final analysis = expByCategory.entries.map((e) {
-    final cat = categories.firstWhere(
-      (c) => c.categoryId == e.key,
-      orElse: () => CategoryModel(
-        categoryId: 'uncategorized',
-        categoryName: 'Khác',
-        categoryType: TransactionType.expense,
-        colorCode: '#6B7280',
-      ),
-    );
-    final pct = totalExpense > 0 ? (e.value / totalExpense) * 100 : 0.0;
-    final color = cat.colorCode ?? defaultColors[ci % defaultColors.length];
-    ci++;
-    return ExpenseAnalysisModel(
-      categoryId: e.key,
-      categoryName: cat.categoryName,
-      colorCode: color,
-      amount: e.value,
-      percentage: pct,
-    );
-  }).toList()..sort((a, b) => b.percentage.compareTo(a.percentage));
+  final totals = FinanceCalculator.transactionTotals(txList);
+  final totalIncome = totals.income;
+  final totalExpense = totals.expense;
+  final analysis = FinanceCalculator.expenseAnalysis(
+    transactions: txList,
+    categories: categories,
+  );
 
   final chart = _buildChart(txList, period, range);
   final summary = ReportSummaryModel(
@@ -203,13 +166,6 @@ List<ChartDataPoint> _buildChart(
   ReportPeriod period,
   ReportDateRange range,
 ) {
-  int sumIncome(Iterable<TransactionModel> t) => t
-      .where((x) => x.transactionType == TransactionType.income)
-      .fold(0, (s, x) => s + x.amount);
-  int sumExpense(Iterable<TransactionModel> t) => t
-      .where((x) => x.transactionType == TransactionType.expense)
-      .fold(0, (s, x) => s + x.amount);
-
   switch (period) {
     case ReportPeriod.thisMonth:
     case ReportPeriod.previousMonth:
@@ -226,11 +182,12 @@ List<ChartDataPoint> _buildChart(
         final wt = txList.where(
           (t) => t.transactionDate.day >= sd && t.transactionDate.day <= ed,
         );
+        final totals = FinanceCalculator.transactionTotals(wt);
         weeks.add(
           ChartDataPoint(
             label: 'T${w + 1}',
-            value1: sumIncome(wt),
-            value2: sumExpense(wt),
+            value1: totals.income,
+            value2: totals.expense,
           ),
         );
       }
@@ -253,10 +210,11 @@ List<ChartDataPoint> _buildChart(
       ];
       return List.generate(12, (i) {
         final mt = txList.where((t) => t.transactionDate.month == i + 1);
+        final totals = FinanceCalculator.transactionTotals(mt);
         return ChartDataPoint(
           label: ml[i],
-          value1: sumIncome(mt),
-          value2: sumExpense(mt),
+          value1: totals.income,
+          value2: totals.expense,
         );
       });
   }
@@ -267,14 +225,23 @@ List<ChartDataPoint> _buildChart(
 // ─────────────────────────────────────────────────────────────
 final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
   final period = ref.watch(reportPeriodProvider);
-  final categories = await ref.watch(categoriesProvider.future);
-  final profile = await ref.watch(currentUserProfileProvider.future);
+  final transactionsReady = ref.watch(transactionsProvider.future);
+  final invoicesReady = ref.watch(invoicesProvider.future);
+  final categoriesReady = ref.watch(categoriesProvider.future);
+  final profileReady = ref.watch(currentUserProfileProvider.future);
+
+  // The report queries full date ranges from SQLite below. Watching these
+  // providers makes that query run again after any transaction/invoice change.
+  await Future.wait([transactionsReady, invoicesReady]);
+  final categories = await categoriesReady;
+  final profile = await profileReady;
   final companyId = profile?.companyId;
   if (companyId == null) {
     throw StateError('Tài khoản chưa có hồ sơ doanh nghiệp.');
   }
   final repo = ref.read(transactionRepositoryProvider);
   final invoiceRepo = ref.read(invoiceRepositoryProvider);
+  final createdBy = profile!.isAccountant ? profile.userId : null;
 
   final range = getDateRange(period);
   final prev = getPreviousDateRange(period);
@@ -284,13 +251,22 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
       range.start,
       range.end,
       companyId: companyId,
+      createdBy: createdBy,
+      approvalStatus: ApprovalStatus.approved,
     ),
-    repo.getTransactionsByDateRange(prev.start, prev.end, companyId: companyId),
+    repo.getTransactionsByDateRange(
+      prev.start,
+      prev.end,
+      companyId: companyId,
+      createdBy: createdBy,
+      approvalStatus: ApprovalStatus.approved,
+    ),
   ]);
   final invoices = await invoiceRepo.getInvoicesByDateRange(
     range.start,
     range.end,
     companyId: companyId,
+    createdBy: createdBy,
   );
 
   final curReport = _computeReport(results[0], categories, period, range);
@@ -303,8 +279,9 @@ final reportsProvider = FutureProvider<ReportDataExtended>((ref) async {
     TransactionType.expense,
   );
 
-  final pi = FinanceCalculator.totalIncome(results[1]);
-  final pe = FinanceCalculator.totalExpense(results[1]);
+  final previousTotals = FinanceCalculator.transactionTotals(results[1]);
+  final pi = previousTotals.income;
+  final pe = previousTotals.expense;
 
   final prevSummary = ReportSummaryModel(
     totalIncome: pi,

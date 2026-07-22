@@ -81,6 +81,12 @@ void main() {
         companyId: 'company-a',
         createdAt: '2026-01-03T00:00:00.000',
       );
+      await _insertCategory(
+        database,
+        id: 'legacy-salary',
+        companyId: 'company-a',
+        name: 'Tiền lương',
+      );
       await database.insert('transactions', <String, Object>{
         'transaction_id': 'transaction-1',
         'category_id': 'travel-2',
@@ -101,13 +107,90 @@ void main() {
         limit: 1,
       );
 
-      expect(categories, hasLength(5));
+      expect(categories, hasLength(6));
       expect(travelCategories, hasLength(1));
-      expect(travelCategories.single.categoryId, 'travel-1');
-      expect(transaction.single['category_id'], 'travel-1');
+      expect(
+        travelCategories.single.categoryId,
+        'default:company-a:expense:travel',
+      );
+      expect(
+        transaction.single['category_id'],
+        'default:company-a:expense:travel',
+      );
       expect(transaction.single['is_synced'], 0);
+      expect(
+        categories.where((category) => category.categoryName == 'Lương'),
+        hasLength(1),
+      );
+      expect(
+        categories.where((category) => category.categoryName == 'Tiền lương'),
+        isEmpty,
+      );
     },
   );
+
+  test(
+    'canonicalizes legacy default ids while unique index is active',
+    () async {
+      await _insertCategory(
+        database,
+        id: 'legacy-travel',
+        companyId: 'company-a',
+      );
+      await _insertCategory(
+        database,
+        id: 'legacy-salary',
+        companyId: 'company-a',
+        name: 'Tiền lương',
+      );
+      await _createUniqueIndex(database);
+
+      await repository.seedDefaultCategories('company-a');
+      await repository.seedDefaultCategories('company-a');
+
+      final categories = await repository.getCategories(companyId: 'company-a');
+      expect(categories, hasLength(6));
+      expect(
+        categories.map((category) => category.categoryId),
+        containsAll([
+          'default:company-a:expense:travel',
+          'default:company-a:expense:salary',
+        ]),
+      );
+    },
+  );
+
+  test('only returns unsynced categories from the active company', () async {
+    await _insertCategory(
+      database,
+      id: 'company-a-item',
+      companyId: 'company-a',
+    );
+    await _insertCategory(
+      database,
+      id: 'company-b-item',
+      companyId: 'company-b',
+    );
+    await _insertCategory(database, id: 'legacy-global', companyId: null);
+
+    final pending = await repository.getUnsyncedCategories(
+      companyId: 'company-a',
+    );
+
+    expect(pending.map((item) => item.categoryId), ['company-a-item']);
+  });
+}
+
+Future<void> _createUniqueIndex(Database database) {
+  return database.execute('''
+    CREATE UNIQUE INDEX categories_company_name_type_active_idx
+    ON categories(
+      COALESCE(company_id, ''),
+      LOWER(TRIM(category_name)),
+      category_type
+    )
+    WHERE status = 'ACTIVE'
+  ''');
 }
 
 Future<void> _insertCategory(

@@ -45,14 +45,9 @@ class ExpensesScreen extends ConsumerWidget {
                       spacing: 16,
                       children: [
                         BentoItem(
-                          colSpan: 1,
+                          colSpan: 2,
                           rowSpan: 1,
                           child: _QuickAddCard(),
-                        ),
-                        BentoItem(
-                          colSpan: 1,
-                          rowSpan: 1,
-                          child: _CsvUploadCard(),
                         ),
                         BentoItem(
                           colSpan: 2,
@@ -81,11 +76,6 @@ class ExpensesScreen extends ConsumerWidget {
                           rowSpan: 1,
                           child: _QuickAddCard(),
                         ),
-                        BentoItem(
-                          colSpan: 1,
-                          rowSpan: 1,
-                          child: _CsvUploadCard(),
-                        ),
                       ],
                     );
                   }
@@ -102,11 +92,7 @@ class ExpensesScreen extends ConsumerWidget {
                         rowSpan: 4,
                         child: _ExpensesListCard(isDesktop: true),
                       ),
-                      BentoItem(
-                        colSpan: 1,
-                        rowSpan: 1,
-                        child: _QuickActionsRowCard(),
-                      ),
+                      BentoItem(colSpan: 1, rowSpan: 1, child: _QuickAddCard()),
                     ],
                   );
                 },
@@ -205,50 +191,6 @@ class _QuickAddCard extends StatelessWidget {
   }
 }
 
-class _CsvUploadCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return BentoCard(
-      onTap: () {},
-      style: BentoCardStyle.ghost,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.upload_file_rounded,
-              size: 32,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tải CSV',
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// For Desktop where Manual and CSV share a 1x1 cell
-class _QuickActionsRowCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: _QuickAddCard()),
-        const SizedBox(width: 16),
-        Expanded(child: _CsvUploadCard()),
-      ],
-    );
-  }
-}
-
 // ─── List ────────────────────────────────────────────────────────────────────
 
 class _ExpensesListCard extends ConsumerWidget {
@@ -269,23 +211,7 @@ class _ExpensesListCard extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(24.0),
-            child: BentoSectionHeader(
-              title: 'Chi phí gần đây',
-              action: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.filter_list_rounded),
-                    color: theme.colorScheme.primary,
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.search_rounded),
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
-              ),
-            ),
+            child: BentoSectionHeader(title: 'Chi phí gần đây'),
           ),
           const Divider(height: 1),
           Expanded(
@@ -440,8 +366,7 @@ class _ExpensesListCard extends ConsumerWidget {
                                               ),
                                             ),
                                             Text(
-                                              category?.categoryName ??
-                                                  'Chưa phân loại',
+                                              '${category?.categoryName ?? 'Chưa phân loại'} • ${tx.approvalStatus.label}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: theme
@@ -478,18 +403,27 @@ class _ExpensesListCard extends ConsumerWidget {
                                   ),
                                 ),
                                 DataCell(
-                                  IconButton(
-                                    tooltip: 'Xóa giao dịch',
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => _confirmDeleteTransaction(
-                                      context,
-                                      ref,
-                                      tx.transactionId,
-                                    ),
-                                  ),
+                                  tx.invoiceId != null
+                                      ? const Tooltip(
+                                          message:
+                                              'Giao dịch đã khóa theo hóa đơn',
+                                          child: Icon(
+                                            Icons.lock_outline_rounded,
+                                          ),
+                                        )
+                                      : IconButton(
+                                          tooltip: 'Xóa giao dịch',
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                            size: 20,
+                                          ),
+                                          onPressed: () =>
+                                              _confirmDeleteTransaction(
+                                                context,
+                                                ref,
+                                                tx.transactionId,
+                                              ),
+                                        ),
                                 ),
                               ],
                             );
@@ -540,7 +474,9 @@ class _ExpensesListCard extends ConsumerWidget {
 
                       return Dismissible(
                         key: ValueKey(tx.transactionId),
-                        direction: DismissDirection.endToStart,
+                        direction: tx.invoiceId == null
+                            ? DismissDirection.endToStart
+                            : DismissDirection.none,
                         movementDuration: const Duration(milliseconds: 250),
                         resizeDuration: const Duration(milliseconds: 220),
                         background: Container(
@@ -610,7 +546,7 @@ class _ExpensesListCard extends ConsumerWidget {
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              '${category?.categoryName ?? 'Chưa phân loại'} • ${DateFormat('dd/MM').format(tx.transactionDate)}',
+                                              '${category?.categoryName ?? 'Chưa phân loại'} • ${DateFormat('dd/MM').format(tx.transactionDate)} • ${tx.approvalStatus.label}',
                                               style: theme.textTheme.bodySmall
                                                   ?.copyWith(
                                                     color: theme
@@ -642,6 +578,15 @@ class _ExpensesListCard extends ConsumerWidget {
                                         Icons.receipt_long_outlined,
                                         size: 18,
                                         color: theme.colorScheme.primary,
+                                      ),
+                                    ],
+                                    if (tx.invoiceId != null) ...[
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.lock_outline_rounded,
+                                        size: 17,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                       ),
                                     ],
                                   ],

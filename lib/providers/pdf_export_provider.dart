@@ -17,11 +17,10 @@ final pdfExportProvider =
     });
 
 class PdfExportNotifier extends AsyncNotifier<PdfExportModel?> {
-  late final PdfExportService _service;
+  PdfExportService get _service => ref.read(pdfExportServiceProvider);
 
   @override
   FutureOr<PdfExportModel?> build() {
-    _service = ref.read(pdfExportServiceProvider);
     return null;
   }
 

@@ -13,6 +13,10 @@ class UserModel {
   final DateTime? updatedAt;
   final bool isSynced;
 
+  AppRole get role => AppRole.fromRoleId(roleId);
+  bool get isManager => role == AppRole.manager;
+  bool get isAccountant => role == AppRole.accountant;
+
   UserModel({
     required this.userId,
     this.companyId,
@@ -26,6 +30,34 @@ class UserModel {
     this.updatedAt,
     this.isSynced = false,
   });
+
+  UserModel copyWith({
+    String? userId,
+    String? companyId,
+    String? roleId,
+    String? fullName,
+    String? email,
+    String? passwordHash,
+    String? phone,
+    RecordStatus? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isSynced,
+  }) {
+    return UserModel(
+      userId: userId ?? this.userId,
+      companyId: companyId ?? this.companyId,
+      roleId: roleId ?? this.roleId,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      passwordHash: passwordHash ?? this.passwordHash,
+      phone: phone ?? this.phone,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isSynced: isSynced ?? this.isSynced,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {

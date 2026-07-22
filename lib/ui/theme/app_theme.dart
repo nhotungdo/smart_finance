@@ -19,9 +19,7 @@ class AppTheme {
         surface: surfaceColor,
         surfaceContainerHighest: const Color(0xFFF1F5F9), // Slate 100
         error: const Color(0xFFEF4444), // Red 500
-      ).copyWith(
-        surface: surfaceColor,
-      ),
+      ).copyWith(surface: surfaceColor),
       scaffoldBackgroundColor: bgColor,
       textTheme: GoogleFonts.interTextTheme().copyWith(
         displayLarge: GoogleFonts.plusJakartaSans(
@@ -40,12 +38,8 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.inter(
-          color: textPrimary,
-        ),
-        bodyMedium: GoogleFonts.inter(
-          color: textSecondary,
-        ),
+        bodyLarge: GoogleFonts.inter(color: textPrimary),
+        bodyMedium: GoogleFonts.inter(color: textSecondary),
         labelMedium: GoogleFonts.inter(
           fontWeight: FontWeight.w600,
           color: textPrimary,
@@ -67,9 +61,7 @@ class AppTheme {
         color: surfaceColor,
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -94,7 +86,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: GoogleFonts.inter(
           color: const Color(0xFF94A3B8), // Slate 400
         ),
@@ -154,41 +149,34 @@ class AppTheme {
         onSurface: textPrimary,
         onSurfaceVariant: textSecondary,
         error: const Color(0xFFF87171), // Red 400
-      ).copyWith(
-        surface: surfaceColor,
-      ),
+      ).copyWith(surface: surfaceColor),
       scaffoldBackgroundColor: bgColor,
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        displayMedium: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        titleLarge: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        titleMedium: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        bodyLarge: GoogleFonts.inter(
-          color: textPrimary,
-        ),
-        bodyMedium: GoogleFonts.inter(
-          color: textSecondary,
-        ),
-        bodySmall: GoogleFonts.inter(
-          color: textSecondary,
-        ),
-        labelMedium: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-      ),
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+          .copyWith(
+            displayLarge: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+            ),
+            displayMedium: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+            ),
+            titleLarge: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+            ),
+            titleMedium: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+            bodyLarge: GoogleFonts.inter(color: textPrimary),
+            bodyMedium: GoogleFonts.inter(color: textSecondary),
+            bodySmall: GoogleFonts.inter(color: textSecondary),
+            labelMedium: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
       appBarTheme: AppBarTheme(
         backgroundColor: bgColor,
         elevation: 0,
@@ -207,7 +195,10 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155), width: 1), // subtle border
+          side: const BorderSide(
+            color: Color(0xFF334155),
+            width: 1,
+          ), // subtle border
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -233,7 +224,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFF87171), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: GoogleFonts.inter(
           color: const Color(0xFF94A3B8), // Slate 400
         ),

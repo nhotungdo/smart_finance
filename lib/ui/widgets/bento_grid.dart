@@ -86,90 +86,94 @@ class _BentoGridLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final totalWidth = constraints.maxWidth;
-      final cellWidth =
-          (totalWidth - spacing * (columns - 1)) / columns;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final cellWidth = (totalWidth - spacing * (columns - 1)) / columns;
 
-      // Build rows greedily
-      final rows = <List<_SlottedItem>>[];
-      final occupied = <String>{};
+        // Build rows greedily
+        final rows = <List<_SlottedItem>>[];
+        final occupied = <String>{};
 
-      int row = 0;
-      int colCursor = 0;
+        int row = 0;
+        int colCursor = 0;
 
-      for (final item in items) {
-        final span = item.colSpan.clamp(1, columns);
-        final rspan = item.rowSpan.clamp(1, 4);
+        for (final item in items) {
+          final span = item.colSpan.clamp(1, columns);
+          final rspan = item.rowSpan.clamp(1, 4);
 
-        // Find next available slot
-        while (true) {
-          if (colCursor + span > columns) {
+          // Find next available slot
+          while (true) {
+            if (colCursor + span > columns) {
+              colCursor = 0;
+              row++;
+            }
+            bool fits = true;
+            for (int r = row; r < row + rspan && fits; r++) {
+              for (int c = colCursor; c < colCursor + span && fits; c++) {
+                if (occupied.contains('$r-$c')) fits = false;
+              }
+            }
+            if (fits) break;
+            colCursor++;
+          }
+
+          // Mark occupied
+          for (int r = row; r < row + rspan; r++) {
+            for (int c = colCursor; c < colCursor + span; c++) {
+              occupied.add('$r-$c');
+            }
+          }
+
+          while (rows.length <= row + rspan - 1) {
+            rows.add([]);
+          }
+          rows[row].add(
+            _SlottedItem(
+              child: item.child,
+              col: colCursor,
+              colSpan: span,
+              rowSpan: rspan,
+              row: row,
+            ),
+          );
+
+          colCursor += span;
+          if (colCursor >= columns) {
             colCursor = 0;
             row++;
           }
-          bool fits = true;
-          for (int r = row; r < row + rspan && fits; r++) {
-            for (int c = colCursor; c < colCursor + span && fits; c++) {
-              if (occupied.contains('$r-$c')) fits = false;
-            }
-          }
-          if (fits) break;
-          colCursor++;
         }
 
-        // Mark occupied
-        for (int r = row; r < row + rspan; r++) {
-          for (int c = colCursor; c < colCursor + span; c++) {
-            occupied.add('$r-$c');
-          }
-        }
+        // Calculate total rows needed
+        final maxRow = occupied.isEmpty
+            ? 0
+            : occupied
+                      .map((s) => int.parse(s.split('-')[0]))
+                      .reduce((a, b) => a > b ? a : b) +
+                  1;
 
-        while (rows.length <= row + rspan - 1) {
-          rows.add([]);
-        }
-        rows[row].add(_SlottedItem(
-          child: item.child,
-          col: colCursor,
-          colSpan: span,
-          rowSpan: rspan,
-          row: row,
-        ));
-
-        colCursor += span;
-        if (colCursor >= columns) {
-          colCursor = 0;
-          row++;
-        }
-      }
-
-      // Calculate total rows needed
-      final maxRow = occupied.isEmpty
-          ? 0
-          : occupied
-              .map((s) => int.parse(s.split('-')[0]))
-              .reduce((a, b) => a > b ? a : b) +
-          1;
-
-      return SizedBox(
-        height: maxRow * baseHeight + (maxRow - 1) * spacing,
-        child: Stack(
-          children: [
-            for (final rowItems in rows)
-              for (final item in rowItems)
-                Positioned(
-                  left: item.col * (cellWidth + spacing),
-                  top: item.row * (baseHeight + spacing),
-                  width: item.colSpan * cellWidth +
-                      (item.colSpan - 1) * spacing,
-                  height: item.rowSpan * baseHeight +
-                      (item.rowSpan - 1) * spacing,
-                  child: item.child,
-                ),
-          ],
-        ),
-      );
-    });
+        return SizedBox(
+          height: maxRow * baseHeight + (maxRow - 1) * spacing,
+          child: Stack(
+            children: [
+              for (final rowItems in rows)
+                for (final item in rowItems)
+                  Positioned(
+                    left: item.col * (cellWidth + spacing),
+                    top: item.row * (baseHeight + spacing),
+                    width:
+                        item.colSpan * cellWidth + (item.colSpan - 1) * spacing,
+                    height:
+                        item.rowSpan * baseHeight +
+                        (item.rowSpan - 1) * spacing,
+                    child: item.child,
+                  ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -207,32 +211,33 @@ class ResponsiveBentoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth < breakpoint) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children
-              .expand((c) => [c, SizedBox(height: spacing)])
-              .toList()
-            ..removeLast(),
-        );
-      }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < breakpoint) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children:
+                children.expand((c) => [c, SizedBox(height: spacing)]).toList()
+                  ..removeLast(),
+          );
+        }
 
-      final items = <Widget>[];
-      for (int i = 0; i < children.length; i++) {
-        if (i > 0) items.add(SizedBox(width: spacing));
-        items.add(
-          Expanded(
-            flex: flexes != null && i < flexes!.length ? flexes![i] : 1,
-            child: children[i],
-          ),
-        );
-      }
+        final items = <Widget>[];
+        for (int i = 0; i < children.length; i++) {
+          if (i > 0) items.add(SizedBox(width: spacing));
+          items.add(
+            Expanded(
+              flex: flexes != null && i < flexes!.length ? flexes![i] : 1,
+              child: children[i],
+            ),
+          );
+        }
 
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: items,
-      );
-    });
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: items,
+        );
+      },
+    );
   }
 }

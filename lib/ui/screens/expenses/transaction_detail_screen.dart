@@ -88,7 +88,9 @@ class _TransactionDetails extends ConsumerWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  if (isExpense && transaction.invoiceId == null)
+                  if (isExpense &&
+                      transaction.invoiceId == null &&
+                      transaction.approvalStatus == ApprovalStatus.pending)
                     OutlinedButton.icon(
                       onPressed: () =>
                           context.push('/invoicing/create', extra: transaction),
@@ -96,7 +98,10 @@ class _TransactionDetails extends ConsumerWidget {
                       label: const Text('Tạo hóa đơn'),
                     ),
                   FilledButton.tonalIcon(
-                    onPressed: transaction.invoiceId != null
+                    onPressed:
+                        transaction.invoiceId != null ||
+                            transaction.approvalStatus ==
+                                ApprovalStatus.approved
                         ? null
                         : () async {
                             await showDialog<void>(
@@ -114,7 +119,10 @@ class _TransactionDetails extends ConsumerWidget {
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     label: Text(
                       transaction.invoiceId == null
-                          ? 'Sửa giao dịch'
+                          ? transaction.approvalStatus ==
+                                    ApprovalStatus.approved
+                                ? 'Đã khóa sau duyệt'
+                                : 'Sửa giao dịch'
                           : 'Đã khóa theo hóa đơn',
                     ),
                   ),
@@ -205,6 +213,17 @@ class _TransactionDetails extends ConsumerWidget {
                           ? transaction.description!
                           : 'Không có mô tả',
                     ),
+                    _DetailRow(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Trạng thái duyệt',
+                      value: transaction.approvalStatus.label,
+                    ),
+                    if (transaction.rejectionReason?.isNotEmpty == true)
+                      _DetailRow(
+                        icon: Icons.info_outline_rounded,
+                        label: 'Lý do từ chối',
+                        value: transaction.rejectionReason!,
+                      ),
                     _DetailRow(
                       icon: Icons.cloud_done_outlined,
                       label: 'Đồng bộ',

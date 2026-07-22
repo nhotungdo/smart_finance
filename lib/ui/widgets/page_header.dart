@@ -4,12 +4,14 @@ class PageHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? action;
+  final bool compact;
 
   const PageHeader({
     super.key,
     required this.title,
     required this.subtitle,
     this.action,
+    this.compact = false,
   });
 
   @override
@@ -22,17 +24,21 @@ class PageHeader extends StatelessWidget {
           title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.bold,
-          ),
+          style:
+              (compact
+                      ? theme.textTheme.headlineSmall
+                      : theme.textTheme.headlineMedium)
+                  ?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: compact ? 4 : 6),
         Text(
           subtitle,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          style:
+              (compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
     );

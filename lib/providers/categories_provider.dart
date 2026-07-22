@@ -11,7 +11,7 @@ class CategoriesNotifier extends AsyncNotifier<List<CategoryModel>> {
   @override
   Future<List<CategoryModel>> build() async {
     final repo = ref.read(categoryRepositoryProvider);
-    final profile = await ref.read(currentUserProfileProvider.future);
+    final profile = await ref.watch(currentUserProfileProvider.future);
     final companyId = profile?.companyId;
     if (companyId == null) return [];
     await repo.seedDefaultCategories(companyId);

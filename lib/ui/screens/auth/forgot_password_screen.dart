@@ -14,8 +14,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
       _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState
-    extends ConsumerState<ForgotPasswordScreen>
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
@@ -29,13 +28,14 @@ class _ForgotPasswordScreenState
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _fadeAnim =
-        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
     _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -54,12 +54,16 @@ class _ForgotPasswordScreenState
     if (!mounted) return;
     final state = ref.read(authNotifierProvider);
     if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Lỗi: ${state.error}'),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${state.error}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     } else {
       setState(() => _sent = true);
     }
@@ -82,8 +86,10 @@ class _ForgotPasswordScreenState
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 36,
+                  ),
                   child: _sent
                       ? _SuccessView(
                           theme: theme,
@@ -128,6 +134,7 @@ class _FormView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Form(
       key: formKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -138,10 +145,10 @@ class _FormView extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => context.go('/login'),
                 style: IconButton.styleFrom(
-                  backgroundColor:
-                      theme.colorScheme.surfaceContainerHighest,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -149,11 +156,16 @@ class _FormView extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF4F46E5)],
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child:
-                    const Icon(Icons.auto_graph, color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.auto_graph,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -172,18 +184,25 @@ class _FormView extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: const Icon(Icons.lock_reset_rounded,
-                  color: Colors.white, size: 40),
+              child: const Icon(
+                Icons.lock_reset_rounded,
+                color: Colors.white,
+                size: 40,
+              ),
             ),
           ),
           const SizedBox(height: 28),
@@ -209,7 +228,7 @@ class _FormView extends StatelessWidget {
           // Email input bento
           BentoCard(
             showAccentStrip: true,
-            accentColor: theme.colorScheme.primary,
+            accentColor: const Color(0xFFF59E0B),
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,11 +238,14 @@ class _FormView extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.email_outlined,
-                          color: theme.colorScheme.primary, size: 18),
+                      child: const Icon(
+                        Icons.email_outlined,
+                        color: Color(0xFFF59E0B),
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -241,8 +263,9 @@ class _FormView extends StatelessWidget {
                   hintText: 'email@congty.com',
                   labelText: 'Email đã đăng ký',
                   prefixIcon: Icons.alternate_email,
-                  validator: (v) =>
-                      v == null || !v.contains('@') ? 'Email không hợp lệ' : null,
+                  validator: (v) => v == null || !v.contains('@')
+                      ? 'Email không hợp lệ'
+                      : null,
                 ),
               ],
             ),
@@ -268,14 +291,13 @@ class _FormView extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Nhớ rồi? ',
-                    style: theme.textTheme.bodyMedium),
+                Text('Nhớ rồi? ', style: theme.textTheme.bodyMedium),
                 SmartButton.text(
                   onPressed: () => context.go('/login'),
-                  child: Text(
+                  child: const Text(
                     'Đăng nhập',
                     style: TextStyle(
-                      color: theme.colorScheme.primary,
+                      color: Color(0xFF6C63FF),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -315,7 +337,7 @@ class _SuccessView extends StatelessWidget {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              color: const Color(0xFF10B981).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -323,18 +345,25 @@ class _SuccessView extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.mark_email_read_rounded,
-                    color: Colors.white, size: 40),
+                child: const Icon(
+                  Icons.mark_email_read_rounded,
+                  color: Colors.white,
+                  size: 40,
+                ),
               ),
             ),
           ),
@@ -360,7 +389,7 @@ class _SuccessView extends StatelessWidget {
         Text(
           email,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.primary,
+            color: const Color(0xFF6C63FF),
             fontWeight: FontWeight.w700,
           ),
           textAlign: TextAlign.center,
@@ -371,8 +400,8 @@ class _SuccessView extends StatelessWidget {
         BentoCard(
           gradient: LinearGradient(
             colors: [
-              theme.colorScheme.primary.withValues(alpha: 0.06),
-              theme.colorScheme.primary.withValues(alpha: 0.02),
+              const Color(0xFF10B981).withValues(alpha: 0.06),
+              const Color(0xFF10B981).withValues(alpha: 0.02),
             ],
           ),
           padding: const EdgeInsets.all(24),
@@ -381,19 +410,19 @@ class _SuccessView extends StatelessWidget {
               _InfoRow(
                 icon: Icons.access_time_rounded,
                 text: 'Liên kết có hiệu lực trong 24 giờ',
-                color: theme.colorScheme.primary,
+                color: const Color(0xFF10B981),
               ),
               const SizedBox(height: 14),
               _InfoRow(
                 icon: Icons.inbox_rounded,
                 text: 'Kiểm tra cả thư mục Spam nếu không thấy email',
-                color: theme.colorScheme.primary,
+                color: const Color(0xFFF59E0B),
               ),
               const SizedBox(height: 14),
               _InfoRow(
                 icon: Icons.security_rounded,
                 text: 'Không chia sẻ liên kết này với bất kỳ ai',
-                color: theme.colorScheme.primary,
+                color: const Color(0xFFEF4444),
               ),
             ],
           ),

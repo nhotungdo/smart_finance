@@ -6,14 +6,28 @@ class LocalDatabase {
   static final LocalDatabase instance = LocalDatabase._init();
 
   static Database? _database;
+  static Future<Database>? _openingDatabase;
 
   LocalDatabase._init();
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    final openedDatabase = _database;
+    if (openedDatabase != null && openedDatabase.isOpen) {
+      return openedDatabase;
+    }
 
-    _database = await _initDB('smart_finance');
-    return _database!;
+    final openingDatabase = _openingDatabase;
+    if (openingDatabase != null) return openingDatabase;
+
+    final future = _initDB('smart_finance');
+    _openingDatabase = future;
+    try {
+      final database = await future;
+      _database = database;
+      return database;
+    } finally {
+      _openingDatabase = null;
+    }
   }
 
   Future<Database> _initDB(String filePath) async {
@@ -21,7 +35,8 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 9,
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -48,7 +63,123 @@ class LocalDatabase {
           CHECK (invoice_type IN ('INCOME', 'EXPENSE'))
       ''');
     }
+    if (oldVersion < 7) {
+      await _addColumnIfMissing(
+        db,
+        table: 'ocr_results',
+        column: 'is_synced',
+        definition: 'INTEGER DEFAULT 0',
+      );
+      await _createSyncDeletionsTable(db);
+      await _createPendingInvoiceImagesTable(db);
+    }
+    if (oldVersion < 8) {
+      await _migrateRolesAndApprovals(db);
+    }
+    if (oldVersion < 9) {
+      await _migrateSyncOwnership(db);
+    }
     await _createIndexes(db);
+  }
+
+  Future<void> _migrateSyncOwnership(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      table: 'sync_deletions',
+      column: 'company_id',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'sync_deletions',
+      column: 'created_by',
+      definition: 'TEXT',
+    );
+
+    // Kế toán không được sửa lại giao dịch đã được quản lý xử lý.
+    // Các dòng này sẽ được PULL lại từ cloud khi đồng bộ.
+    await db.execute('''
+      UPDATE transactions
+      SET is_synced = 1
+      WHERE approval_status <> 'PENDING'
+    ''');
+  }
+
+  Future<void> _migrateRolesAndApprovals(Database db) async {
+    await db.insert('roles', {
+      'role_id': 'role_manager',
+      'role_name': 'MANAGER',
+      'description': 'Quản lý',
+      'is_synced': 1,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('roles', {
+      'role_id': 'role_accountant',
+      'role_name': 'ACCOUNTANT',
+      'description': 'Nhân viên kế toán',
+      'is_synced': 1,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.execute('''
+      UPDATE users
+      SET role_id = CASE
+        WHEN role_id IN ('role_manager', 'role_01', 'role_02', 'role_09')
+          THEN 'role_manager'
+        ELSE 'role_accountant'
+      END
+    ''');
+    await _addColumnIfMissing(
+      db,
+      table: 'invoices',
+      column: 'created_by',
+      definition: 'TEXT REFERENCES users(user_id)',
+    );
+    await db.execute(
+      'UPDATE invoices SET created_by = uploaded_by WHERE created_by IS NULL',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'transactions',
+      column: 'approval_status',
+      definition: "TEXT NOT NULL DEFAULT 'APPROVED'",
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'transactions',
+      column: 'approved_by',
+      definition: 'TEXT REFERENCES users(user_id)',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'transactions',
+      column: 'approved_at',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'transactions',
+      column: 'rejection_reason',
+      definition: 'TEXT',
+    );
+    await db.execute('''
+      UPDATE transactions
+      SET approval_status = CASE UPPER(COALESCE(approval_status, ''))
+        WHEN 'PENDING' THEN 'PENDING'
+        WHEN 'REJECTED' THEN 'REJECTED'
+        ELSE 'APPROVED'
+      END
+    ''');
+  }
+
+  Future<void> _addColumnIfMissing(
+    Database db, {
+    required String table,
+    required String column,
+    required String definition,
+  }) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = columns.any((item) => item['name'] == column);
+    if (!exists) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
   }
 
   Future<void> _migrateEnumValues(Database db) async {
@@ -154,6 +285,18 @@ class LocalDatabase {
         is_synced INTEGER DEFAULT 0
       )
     ''');
+    await db.insert('roles', {
+      'role_id': 'role_manager',
+      'role_name': 'MANAGER',
+      'description': 'Quản lý',
+      'is_synced': 1,
+    });
+    await db.insert('roles', {
+      'role_id': 'role_accountant',
+      'role_name': 'ACCOUNTANT',
+      'description': 'Nhân viên kế toán',
+      'is_synced': 1,
+    });
 
     // 3. USER
     await db.execute('''
@@ -198,6 +341,7 @@ class LocalDatabase {
         invoice_id TEXT PRIMARY KEY,
         company_id TEXT REFERENCES companies(company_id),
         uploaded_by TEXT REFERENCES users(user_id),
+        created_by TEXT REFERENCES users(user_id),
         invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
           CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
         supplier_name TEXT,
@@ -233,6 +377,11 @@ class LocalDatabase {
         receipt_image_path TEXT,
         status TEXT NOT NULL DEFAULT 'ACTIVE'
           CHECK (status IN ('ACTIVE', 'DELETED')),
+        approval_status TEXT NOT NULL DEFAULT 'PENDING'
+          CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED')),
+        approved_by TEXT REFERENCES users(user_id),
+        approved_at TEXT,
+        rejection_reason TEXT,
         created_at TEXT,
         updated_at TEXT,
         is_synced INTEGER DEFAULT 0
@@ -242,6 +391,8 @@ class LocalDatabase {
     // 7. OCR_RESULT & 8. PDF_EXPORT
     await _createOcrResultsTable(db);
     await _createPdfExportsTable(db);
+    await _createSyncDeletionsTable(db);
+    await _createPendingInvoiceImagesTable(db);
     await _createIndexes(db);
   }
 
@@ -250,6 +401,11 @@ class LocalDatabase {
       CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_active_invoice_idx
       ON transactions(invoice_id)
       WHERE invoice_id IS NOT NULL AND status = 'ACTIVE'
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS transactions_company_approval_idx
+      ON transactions(company_id, approval_status, transaction_date DESC)
+      WHERE status = 'ACTIVE'
     ''');
     await db.execute('''
       CREATE UNIQUE INDEX IF NOT EXISTS categories_company_name_type_active_idx
@@ -308,7 +464,8 @@ class LocalDatabase {
         raw_mock_data TEXT,
         status TEXT NOT NULL DEFAULT 'SCANNED'
           CHECK (status IN ('NOT_SCANNED', 'SCANNING', 'SCANNED', 'ERROR')),
-        scanned_at TEXT
+        scanned_at TEXT,
+        is_synced INTEGER DEFAULT 0
       )
     ''');
   }
@@ -328,8 +485,39 @@ class LocalDatabase {
     ''');
   }
 
-  Future close() async {
-    final db = await instance.database;
-    db.close();
+  Future<void> _createSyncDeletionsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_deletions (
+        table_name TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        company_id TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (table_name, record_id)
+      )
+    ''');
+  }
+
+  Future<void> _createPendingInvoiceImagesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_invoice_images (
+        invoice_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        image_bytes BLOB NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> close() async {
+    final openingDatabase = _openingDatabase;
+    final db =
+        _database ?? (openingDatabase == null ? null : await openingDatabase);
+    _database = null;
+    _openingDatabase = null;
+    if (db != null && db.isOpen) {
+      await db.close();
+    }
   }
 }

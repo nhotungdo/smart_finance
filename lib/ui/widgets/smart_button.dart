@@ -44,7 +44,8 @@ class SmartButton extends StatefulWidget {
   State<SmartButton> createState() => _SmartButtonState();
 }
 
-class _SmartButtonState extends State<SmartButton> with SingleTickerProviderStateMixin {
+class _SmartButtonState extends State<SmartButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   bool _isHovered = false;
@@ -57,9 +58,10 @@ class _SmartButtonState extends State<SmartButton> with SingleTickerProviderStat
       duration: const Duration(milliseconds: 100),
       reverseDuration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -177,13 +179,16 @@ class _SmartButtonState extends State<SmartButton> with SingleTickerProviderStat
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: _isHovered && widget.type == SmartButtonType.primary
+                  boxShadow:
+                      _isHovered && widget.type == SmartButtonType.primary
                       ? [
                           BoxShadow(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.4,
+                            ),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ]
                       : null,
                 ),

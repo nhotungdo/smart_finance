@@ -40,7 +40,9 @@ class PdfExportModel {
       invoiceId: map['invoice_id'] as String?,
       exportType: map['export_type'] as String,
       filePath: map['file_path'] as String,
-      exportedAt: map['exported_at'] != null ? DateTime.parse(map['exported_at'] as String) : null,
+      exportedAt: map['exported_at'] != null
+          ? DateTime.parse(map['exported_at'] as String)
+          : null,
       isSynced: (map['is_synced'] as int?) == 1,
     );
   }

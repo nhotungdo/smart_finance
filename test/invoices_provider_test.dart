@@ -9,16 +9,39 @@ import 'package:smart_finance/providers/invoices_provider.dart';
 
 class _FakeInvoiceRepository implements InvoiceRepository {
   int fetchCount = 0;
+  final requests = <(String companyId, String? createdBy)>[];
 
   @override
-  Future<List<InvoiceModel>> getInvoices(String companyId) async {
+  Future<List<InvoiceModel>> getInvoices(
+    String companyId, {
+    String? createdBy,
+  }) async {
     fetchCount++;
+    requests.add((companyId, createdBy));
     return const [];
   }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+class _ActiveProfileNotifier extends Notifier<UserModel> {
+  @override
+  UserModel build() => UserModel(
+    userId: 'accountant-a',
+    companyId: 'company-a',
+    roleId: 'role_accountant',
+    fullName: 'Accountant A',
+    email: 'accountant-a@example.com',
+  );
+
+  void changeTo(UserModel profile) => state = profile;
+}
+
+final _activeProfileProvider =
+    NotifierProvider<_ActiveProfileNotifier, UserModel>(
+      _ActiveProfileNotifier.new,
+    );
 
 void main() {
   test('invoice summary is derived from the current invoice list', () {
@@ -79,4 +102,36 @@ void main() {
       expect(container.read(invoicesProvider).hasError, isFalse);
     },
   );
+
+  test('invoice notifier reloads when the signed-in profile changes', () async {
+    final repository = _FakeInvoiceRepository();
+    final container = ProviderContainer(
+      overrides: [
+        invoiceRepositoryProvider.overrideWithValue(repository),
+        currentUserProfileProvider.overrideWith(
+          (ref) async => ref.watch(_activeProfileProvider),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(invoicesProvider.future);
+    expect(repository.requests.last, ('company-a', 'accountant-a'));
+
+    container
+        .read(_activeProfileProvider.notifier)
+        .changeTo(
+          UserModel(
+            userId: 'accountant-b',
+            companyId: 'company-b',
+            roleId: 'role_accountant',
+            fullName: 'Accountant B',
+            email: 'accountant-b@example.com',
+          ),
+        );
+
+    await container.read(invoicesProvider.future);
+    expect(repository.requests.last, ('company-b', 'accountant-b'));
+    expect(repository.fetchCount, 2);
+  });
 }

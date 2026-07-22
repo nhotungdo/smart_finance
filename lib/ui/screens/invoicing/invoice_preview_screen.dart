@@ -66,14 +66,10 @@ class _InvoiceDocument extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 16,
-                  runSpacing: 12,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 560;
+                    final title = Row(
                       children: [
                         IconButton(
                           tooltip: 'Quay lại',
@@ -83,24 +79,45 @@ class _InvoiceDocument extends ConsumerWidget {
                           icon: const Icon(Icons.arrow_back_rounded),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Xem trước hóa đơn',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Xem trước hóa đơn',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                    SmartButton(
+                    );
+                    final exportButton = SmartButton(
                       onPressed: pdfState.isLoading
                           ? null
                           : () => _exportPdf(context, ref),
                       isLoading: pdfState.isLoading,
                       icon: const Icon(Icons.print_outlined, size: 18),
                       child: const Text('In / Xuất PDF'),
-                    ),
-                  ],
+                    );
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          title,
+                          const SizedBox(height: 12),
+                          exportButton,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: title),
+                        const SizedBox(width: 16),
+                        exportButton,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
                 linkedTransaction.when(
@@ -165,7 +182,7 @@ class _InvoiceDocument extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildInvoiceHeader(theme, date, isDesktop),
+                            _buildInvoiceHeader(theme, date),
                             const SizedBox(height: 24),
                             const Divider(),
                             const SizedBox(height: 24),
@@ -208,12 +225,11 @@ class _InvoiceDocument extends ConsumerWidget {
     );
   }
 
-  Widget _buildInvoiceHeader(ThemeData theme, DateFormat date, bool isDesktop) {
+  Widget _buildInvoiceHeader(ThemeData theme, DateFormat date) {
     final company = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 40,
@@ -228,11 +244,15 @@ class _InvoiceDocument extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              'SmartFinance SME',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'SmartFinance SME',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -245,9 +265,7 @@ class _InvoiceDocument extends ConsumerWidget {
       ],
     );
     final metadata = Column(
-      crossAxisAlignment: isDesktop
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           invoice.invoiceType == TransactionType.income
@@ -258,7 +276,11 @@ class _InvoiceDocument extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(invoice.invoiceNumber ?? invoice.id),
+        Text(
+          invoice.invoiceNumber ?? invoice.id,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         Text(
           invoice.invoiceDate == null
               ? 'Chưa cập nhật ngày'
@@ -269,11 +291,23 @@ class _InvoiceDocument extends ConsumerWidget {
       ],
     );
 
-    return Flex(
-      direction: isDesktop ? Axis.horizontal : Axis.vertical,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [company, if (!isDesktop) const SizedBox(height: 24), metadata],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 640) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [company, const SizedBox(height: 24), metadata],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: company),
+            const SizedBox(width: 32),
+            Flexible(child: metadata),
+          ],
+        );
+      },
     );
   }
 

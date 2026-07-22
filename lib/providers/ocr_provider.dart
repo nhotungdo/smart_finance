@@ -16,11 +16,10 @@ final ocrProvider = AsyncNotifierProvider<OcrNotifier, OcrResultModel?>(() {
 });
 
 class OcrNotifier extends AsyncNotifier<OcrResultModel?> {
-  late final OcrService _service;
+  OcrService get _service => ref.read(ocrServiceProvider);
 
   @override
   FutureOr<OcrResultModel?> build() {
-    _service = ref.read(ocrServiceProvider);
     return null; // Initial state: not scanned
   }
 

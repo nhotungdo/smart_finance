@@ -1,7 +1,6 @@
 import 'package:smart_finance/data/database/local_database.dart';
 import 'package:smart_finance/data/models/category_model.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
-import 'package:uuid/uuid.dart';
 import 'package:sqflite/sqflite.dart';
 
 class CategoryRepository {
@@ -10,7 +9,6 @@ class CategoryRepository {
           databaseProvider ?? (() => LocalDatabase.instance.database);
 
   final Future<Database> Function() _databaseProvider;
-  final _uuid = const Uuid();
 
   Future<void> seedDefaultCategories(String companyId) async {
     final db = await _databaseProvider();
@@ -20,7 +18,7 @@ class CategoryRepository {
       final now = DateTime.now();
       final defaultCategories = [
         CategoryModel(
-          categoryId: _uuid.v4(),
+          categoryId: _defaultCategoryId(companyId, 'expense:food'),
           companyId: companyId,
           categoryName: 'Ăn uống',
           categoryType: TransactionType.expense,
@@ -31,7 +29,7 @@ class CategoryRepository {
           updatedAt: now,
         ),
         CategoryModel(
-          categoryId: _uuid.v4(),
+          categoryId: _defaultCategoryId(companyId, 'expense:travel'),
           companyId: companyId,
           categoryName: 'Du lịch',
           categoryType: TransactionType.expense,
@@ -42,7 +40,7 @@ class CategoryRepository {
           updatedAt: now,
         ),
         CategoryModel(
-          categoryId: _uuid.v4(),
+          categoryId: _defaultCategoryId(companyId, 'expense:office'),
           companyId: companyId,
           categoryName: 'Văn phòng',
           categoryType: TransactionType.expense,
@@ -53,7 +51,7 @@ class CategoryRepository {
           updatedAt: now,
         ),
         CategoryModel(
-          categoryId: _uuid.v4(),
+          categoryId: _defaultCategoryId(companyId, 'expense:fuel'),
           companyId: companyId,
           categoryName: 'Xăng xe',
           categoryType: TransactionType.expense,
@@ -64,7 +62,18 @@ class CategoryRepository {
           updatedAt: now,
         ),
         CategoryModel(
-          categoryId: _uuid.v4(),
+          categoryId: _defaultCategoryId(companyId, 'expense:salary'),
+          companyId: companyId,
+          categoryName: 'Lương',
+          categoryType: TransactionType.expense,
+          iconName: 'payments',
+          colorCode: '#E11D48',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        CategoryModel(
+          categoryId: _defaultCategoryId(companyId, 'income:sales'),
           companyId: companyId,
           categoryName: 'Doanh thu bán hàng',
           categoryType: TransactionType.income,
@@ -77,34 +86,120 @@ class CategoryRepository {
       ];
 
       for (final category in defaultCategories) {
-        final count =
-            Sqflite.firstIntValue(
-              await txn.rawQuery(
-                '''
-                SELECT COUNT(*)
-                FROM categories
-                WHERE company_id = ?
-                  AND LOWER(TRIM(category_name)) = LOWER(TRIM(?))
-                  AND category_type = ?
-                  AND status = 'ACTIVE'
-                ''',
-                [
-                  companyId,
-                  category.categoryName,
-                  category.categoryType.databaseValue,
-                ],
-              ),
-            ) ??
-            0;
-        if (count == 0) {
-          await txn.insert(
-            'categories',
-            category.toMap(),
-            conflictAlgorithm: ConflictAlgorithm.ignore,
-          );
-        }
+        await _canonicalizeDefaultCategory(txn, category);
       }
     });
+  }
+
+  String _defaultCategoryId(String companyId, String key) {
+    return 'default:$companyId:$key';
+  }
+
+  Future<void> _canonicalizeDefaultCategory(
+    DatabaseExecutor db,
+    CategoryModel category,
+  ) async {
+    final isSalaryCategory =
+        category.categoryType == TransactionType.expense &&
+        category.categoryName == 'Lương';
+    final matchingRows = await db.query(
+      'categories',
+      where: isSalaryCategory
+          ? '''
+        company_id = ?
+        AND (
+          LOWER(TRIM(category_name)) = LOWER(TRIM(?))
+          OR TRIM(category_name) IN ('Tiền lương', 'tiền lương')
+        )
+        AND category_type = ?
+        AND status = 'ACTIVE'
+      '''
+          : '''
+        company_id = ?
+        AND LOWER(TRIM(category_name)) = LOWER(TRIM(?))
+        AND category_type = ?
+        AND status = 'ACTIVE'
+      ''',
+      whereArgs: [
+        category.companyId,
+        category.categoryName,
+        category.categoryType.databaseValue,
+      ],
+      orderBy: 'created_at ASC, category_id ASC',
+    );
+    final canonicalRows = await db.query(
+      'categories',
+      where: 'category_id = ?',
+      whereArgs: [category.categoryId],
+      limit: 1,
+    );
+
+    final legacyRows = matchingRows.where(
+      (row) => row['category_id'] != category.categoryId,
+    );
+    for (final row in legacyRows) {
+      await db.update(
+        'categories',
+        {
+          'status': RecordStatus.deleted.databaseValue,
+          'updated_at': DateTime.now().toIso8601String(),
+          'is_synced': 0,
+        },
+        where: 'category_id = ?',
+        whereArgs: [row['category_id']],
+      );
+    }
+
+    if (canonicalRows.isEmpty) {
+      await db.insert(
+        'categories',
+        category.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    } else {
+      final current = canonicalRows.first;
+      final needsUpdate =
+          current['company_id'] != category.companyId ||
+          current['category_name'] != category.categoryName ||
+          current['category_type'] != category.categoryType.databaseValue ||
+          current['icon_name'] != category.iconName ||
+          current['color_code'] != category.colorCode ||
+          current['is_default'] != 1 ||
+          current['status'] != RecordStatus.active.databaseValue;
+      if (needsUpdate) {
+        await db.update(
+          'categories',
+          {
+            'company_id': category.companyId,
+            'category_name': category.categoryName,
+            'category_type': category.categoryType.databaseValue,
+            'icon_name': category.iconName,
+            'color_code': category.colorCode,
+            'is_default': 1,
+            'status': RecordStatus.active.databaseValue,
+            'updated_at': DateTime.now().toIso8601String(),
+            'is_synced': 0,
+          },
+          where: 'category_id = ?',
+          whereArgs: [category.categoryId],
+        );
+      }
+    }
+
+    for (final row in legacyRows) {
+      final oldId = row['category_id'] as String;
+      await db.update(
+        'transactions',
+        {'category_id': category.categoryId, 'is_synced': 0},
+        where: 'category_id = ?',
+        whereArgs: [oldId],
+      );
+      await db.delete(
+        'categories',
+        where: 'category_id = ?',
+        whereArgs: [oldId],
+      );
+    }
   }
 
   Future<List<CategoryModel>> getCategories({String? companyId}) async {
@@ -130,9 +225,15 @@ class CategoryRepository {
 
   // --- Sync Methods ---
 
-  Future<List<CategoryModel>> getUnsyncedCategories() async {
+  Future<List<CategoryModel>> getUnsyncedCategories({
+    required String companyId,
+  }) async {
     final db = await _databaseProvider();
-    final result = await db.query('categories', where: 'is_synced = 0');
+    final result = await db.query(
+      'categories',
+      where: 'is_synced = 0 AND company_id = ?',
+      whereArgs: [companyId],
+    );
     return result.map((e) => CategoryModel.fromMap(e)).toList();
   }
 

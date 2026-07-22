@@ -70,16 +70,15 @@ final financialSummaryProvider = Provider<AsyncValue<FinancialSummary>>((ref) {
       final thisMonth = transactions.where((t) {
         return t.transactionDate.year == now.year &&
             t.transactionDate.month == now.month;
-      }).toList();
+      });
 
-      final income = FinanceCalculator.totalIncome(thisMonth);
-      final expense = FinanceCalculator.totalExpense(thisMonth);
+      final totals = FinanceCalculator.transactionTotals(thisMonth);
 
       return AsyncValue.data(
         FinancialSummary(
-          totalIncome: income,
-          totalExpense: expense,
-          cashFlow: income - expense,
+          totalIncome: totals.income,
+          totalExpense: totals.expense,
+          cashFlow: totals.cashFlow,
         ),
       );
     },
@@ -120,12 +119,9 @@ final groupedTransactionsProvider =
             final txList = entry.value;
 
             // Tính tổng ngày: thu dương, chi âm
-            final dayTotal = txList.fold(0, (sum, t) {
-              return sum +
-                  (t.transactionType == TransactionType.income
-                      ? t.amount
-                      : -t.amount);
-            });
+            final dayTotal = FinanceCalculator.transactionTotals(
+              txList,
+            ).cashFlow;
 
             // Nhãn ngày thân thiện
             String label;
@@ -162,30 +158,42 @@ final cashFlowChartProvider = Provider<AsyncValue<List<CashFlowPoint>>>((ref) {
     loading: () => const AsyncValue.loading(),
     error: (e, s) => AsyncValue.error(e, s),
     data: (transactions) {
-      final today = DateTime.now();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final firstDay = today.subtract(const Duration(days: 6));
+      final incomeByDay = <int, int>{};
+      final expenseByDay = <int, int>{};
+
+      for (final transaction in transactions) {
+        if (transaction.status != RecordStatus.active ||
+            transaction.approvalStatus != ApprovalStatus.approved) {
+          continue;
+        }
+        final date = DateTime(
+          transaction.transactionDate.year,
+          transaction.transactionDate.month,
+          transaction.transactionDate.day,
+        );
+        if (date.isBefore(firstDay) || date.isAfter(today)) continue;
+        final key = _dateKey(date);
+        if (transaction.transactionType == TransactionType.income) {
+          incomeByDay[key] = (incomeByDay[key] ?? 0) + transaction.amount;
+        } else {
+          expenseByDay[key] = (expenseByDay[key] ?? 0) + transaction.amount;
+        }
+      }
+
       final points = <CashFlowPoint>[];
 
-      // Tính 7 ngày gần nhất (từ 6 ngày trước → hôm nay)
       for (int i = 6; i >= 0; i--) {
         final day = today.subtract(Duration(days: i));
-        final dayTx = transactions.where(
-          (t) => _isSameDay(t.transactionDate, day),
-        );
-
-        final income = dayTx
-            .where((t) => t.transactionType == TransactionType.income)
-            .fold(0, (s, t) => s + t.amount);
-
-        final expense = dayTx
-            .where((t) => t.transactionType == TransactionType.expense)
-            .fold(0, (s, t) => s + t.amount);
-
+        final key = _dateKey(day);
         final weekdayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
         points.add(
           CashFlowPoint(
             label: weekdayLabels[day.weekday % 7],
-            income: income,
-            expense: expense,
+            income: incomeByDay[key] ?? 0,
+            expense: expenseByDay[key] ?? 0,
           ),
         );
       }
@@ -201,8 +209,15 @@ final recentTransactionsProvider = Provider<AsyncValue<List<TransactionModel>>>(
   (ref) {
     final txAsync = ref.watch(transactionsProvider);
     return txAsync.whenData((list) {
-      final sorted = [...list]
-        ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+      final sorted =
+          list
+              .where(
+                (transaction) =>
+                    transaction.status == RecordStatus.active &&
+                    transaction.approvalStatus == ApprovalStatus.approved,
+              )
+              .toList()
+            ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
       return sorted.take(5).toList();
     });
   },
@@ -211,3 +226,5 @@ final recentTransactionsProvider = Provider<AsyncValue<List<TransactionModel>>>(
 // Helper
 bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+int _dateKey(DateTime date) => date.year * 10000 + date.month * 100 + date.day;

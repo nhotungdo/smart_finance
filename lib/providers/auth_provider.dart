@@ -17,12 +17,14 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
 
 // Provider to get the current user synchronously
 final currentUserProvider = Provider<User?>((ref) {
+  ref.watch(authStateProvider);
   return ref.watch(authRepositoryProvider).currentUser;
 });
 
 final currentUserProfileProvider = FutureProvider<UserModel?>((ref) async {
-  ref.watch(authStateProvider);
-  return ref.watch(authRepositoryProvider).getCurrentProfile();
+  final authUser = ref.watch(currentUserProvider);
+  if (authUser == null) return null;
+  return ref.watch(authRepositoryProvider).getProfileForAuthUser(authUser);
 });
 
 // Notifier to handle auth operations with loading state
@@ -37,6 +39,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
       await repo.signInWithEmailPassword(email, password);
+      ref.invalidate(currentUserProvider);
       ref.invalidate(currentUserProfileProvider);
     });
   }
@@ -58,6 +61,7 @@ class AuthNotifier extends AsyncNotifier<void> {
         businessName: businessName,
       );
       requiresEmailConfirmation = response.session == null;
+      ref.invalidate(currentUserProvider);
       ref.invalidate(currentUserProfileProvider);
     });
     return requiresEmailConfirmation;
@@ -76,6 +80,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
       await repo.signOut();
+      ref.invalidate(currentUserProvider);
       ref.invalidate(currentUserProfileProvider);
     });
   }

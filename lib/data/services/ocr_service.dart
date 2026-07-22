@@ -25,30 +25,27 @@ class OcrService {
     required String imageFileName,
     String? localImagePath,
   }) async {
-    // ── Bước 1: Upload ảnh lên Supabase Storage ──
-    debugPrint('OcrService: [1/4] Uploading image to Supabase Storage...');
-    final imageUrl = await _invoiceRepo.uploadInvoiceImage(
+    // ── Bước 1: Cache ảnh local và cập nhật trạng thái scanning ──
+    await _invoiceRepo.cacheInvoiceImage(
       invoiceId: invoice.id,
       companyId: invoice.companyId,
       bytes: imageBytes,
       fileName: imageFileName,
     );
-
-    // ── Bước 2: Cập nhật invoice với ảnh và trạng thái scanning ──
     final updatedInvoice = invoice.copyWith(
-      imagePath: imageUrl ?? localImagePath,
+      imagePath: localImagePath ?? invoice.imagePath,
       scanStatus: InvoiceScanStatus.scanning,
     );
     await _invoiceRepo.updateInvoice(updatedInvoice);
-    debugPrint('OcrService: [2/4] Invoice updated with image path.');
+    debugPrint('OcrService: [1/3] Invoice updated with local image path.');
 
-    // ── Bước 3: Gọi OCR Engine (Mock với AI-like delay) ──
-    debugPrint('OcrService: [3/4] Processing image with OCR engine...');
+    // ── Bước 2: Gọi OCR Engine (Mock với AI-like delay) ──
+    debugPrint('OcrService: [2/3] Processing image with OCR engine...');
     final ocrResult = await _mockOcrExtract(invoice.id);
 
-    // ── Bước 4: Lưu kết quả OCR ──
+    // ── Bước 3: Lưu kết quả OCR ──
     await _invoiceRepo.saveOcrResult(ocrResult);
-    debugPrint('OcrService: [4/4] OCR result saved.');
+    debugPrint('OcrService: [3/3] OCR result saved locally.');
 
     // ── Bước 5: Cập nhật invoice với dữ liệu bóc tách được ──
     final processedInvoice = updatedInvoice.copyWith(
@@ -74,21 +71,29 @@ class OcrService {
         'name': 'Công ty TNHH Giải Pháp Số Việt Nam',
         'tax': '0100111222',
         'subtotal': 3500000,
+        'transaction_type': 'EXPENSE',
+        'category_name': 'Văn phòng',
       },
       {
         'name': 'Tổng Công ty Cổ phần FPT',
         'tax': '0101248141',
         'subtotal': 12000000,
+        'transaction_type': 'EXPENSE',
+        'category_name': 'Văn phòng',
       },
       {
         'name': 'Công ty CP Dịch Vụ Thương Mại Hà Nội',
         'tax': '0312456789',
         'subtotal': 7000000,
+        'transaction_type': 'EXPENSE',
+        'category_name': 'Ăn uống',
       },
       {
         'name': 'Công ty TNHH SmartFinance AI',
         'tax': '0123456789',
         'subtotal': 2500000,
+        'transaction_type': 'INCOME',
+        'category_name': 'Doanh thu bán hàng',
       },
     ];
 
@@ -112,6 +117,8 @@ class OcrService {
         'vat_rate': vat.vatRate,
         'vat_amount': vat.vatAmount,
         'total_amount': vat.total,
+        'transaction_type': mock['transaction_type'],
+        'category_name': mock['category_name'],
         'items': [
           {
             'description': 'Dịch vụ theo hợp đồng',

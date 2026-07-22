@@ -7,16 +7,31 @@ import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/report_model.dart';
 import 'package:smart_finance/data/models/transaction_model.dart';
+import 'package:smart_finance/data/models/user_model.dart';
+import 'package:smart_finance/providers/accounts_provider.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/providers/invoices_provider.dart';
 import 'package:smart_finance/providers/reports_provider.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
+import 'package:smart_finance/providers/theme_provider.dart';
+import 'package:smart_finance/ui/screens/auth/forgot_password_screen.dart';
+import 'package:smart_finance/ui/screens/auth/login_screen.dart';
+import 'package:smart_finance/ui/screens/auth/register_screen.dart';
 import 'package:smart_finance/ui/screens/dashboard/dashboard_screen.dart';
 import 'package:smart_finance/ui/screens/expenses/expenses_screen.dart';
 import 'package:smart_finance/ui/screens/expenses/transaction_detail_screen.dart';
 import 'package:smart_finance/ui/screens/expenses/transactions_history_screen.dart';
+import 'package:smart_finance/ui/screens/invoicing/create_invoice_screen.dart';
+import 'package:smart_finance/ui/screens/invoicing/invoice_preview_screen.dart';
+import 'package:smart_finance/ui/screens/invoicing/invoice_sent_screen.dart';
 import 'package:smart_finance/ui/screens/invoicing/invoicing_screen.dart';
 import 'package:smart_finance/ui/screens/reports/reports_screen.dart';
+import 'package:smart_finance/ui/screens/manager/account_management_screen.dart';
+import 'package:smart_finance/ui/screens/manager/transaction_approval_screen.dart';
+import 'package:smart_finance/ui/screens/settings/settings_screen.dart';
+import 'package:smart_finance/ui/widgets/bento_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeTransactionsNotifier extends TransactionsNotifier {
   @override
@@ -25,13 +40,50 @@ class _FakeTransactionsNotifier extends TransactionsNotifier {
 
 class _FakeCategoriesNotifier extends CategoriesNotifier {
   @override
-  Future<List<CategoryModel>> build() async => const [];
+  Future<List<CategoryModel>> build() async => _categories;
 }
 
 class _FakeInvoicesNotifier extends InvoicesNotifier {
   @override
   Future<List<InvoiceModel>> build() async => _invoices;
 }
+
+class _FakeAccountsNotifier extends AccountsNotifier {
+  @override
+  Future<List<UserModel>> build() async => _accounts;
+}
+
+final _manager = UserModel(
+  userId: 'manager-1',
+  companyId: 'company-1',
+  roleId: AppRole.manager.roleId,
+  fullName: 'Quản lý',
+  email: 'manager@example.com',
+);
+
+final _accounts = [
+  _manager,
+  UserModel(
+    userId: 'accountant-1',
+    companyId: 'company-1',
+    roleId: AppRole.accountant.roleId,
+    fullName: 'Nhân viên kế toán',
+    email: 'accountant@example.com',
+  ),
+];
+
+final _pendingTransactions = [
+  TransactionModel(
+    transactionId: 'pending-1',
+    companyId: 'company-1',
+    createdBy: 'accountant-1',
+    amount: 1200000,
+    transactionType: TransactionType.expense,
+    transactionDate: DateTime(2026, 7, 21),
+    description: 'Chi phí văn phòng',
+    approvalStatus: ApprovalStatus.pending,
+  ),
+];
 
 final _transactions = [
   TransactionModel(
@@ -47,6 +99,19 @@ final _transactions = [
     transactionType: TransactionType.expense,
     transactionDate: DateTime.now(),
     description: 'Mat bang',
+  ),
+];
+
+final _categories = [
+  CategoryModel(
+    categoryId: 'sales',
+    categoryName: 'Doanh thu bán hàng',
+    categoryType: TransactionType.income,
+  ),
+  CategoryModel(
+    categoryId: 'office',
+    categoryName: 'Văn phòng',
+    categoryType: TransactionType.expense,
   ),
 ];
 
@@ -167,6 +232,22 @@ void main() {
     );
   });
 
+  testWidgets('login supports portrait, landscape and desktop', (tester) async {
+    await pumpResponsiveScreen(tester, const LoginScreen());
+  });
+
+  testWidgets('register supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(tester, const RegisterScreen());
+  });
+
+  testWidgets('forgot password supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(tester, const ForgotPasswordScreen());
+  });
+
   testWidgets('expenses supports portrait, landscape and desktop', (
     tester,
   ) async {
@@ -196,6 +277,53 @@ void main() {
     );
   });
 
+  testWidgets('create invoice supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(
+      tester,
+      const CreateInvoiceScreen(),
+      buildScope: (child) => ProviderScope(
+        overrides: [
+          categoriesProvider.overrideWith(_FakeCategoriesNotifier.new),
+        ],
+        child: child,
+      ),
+    );
+
+    expect(find.text('Loại giao dịch'), findsOneWidget);
+    expect(find.text('Danh mục'), findsOneWidget);
+    expect(find.text('Chưa nhận diện'), findsNWidgets(2));
+    expect(find.byType(SegmentedButton<TransactionType>), findsNothing);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+  });
+
+  testWidgets('invoice preview supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(
+      tester,
+      const InvoicePreviewScreen(invoiceId: 'invoice-1'),
+      buildScope: (child) => ProviderScope(
+        overrides: [
+          invoicePreviewProvider.overrideWith(
+            (ref, invoiceId) async => _invoices.first,
+          ),
+          linkedTransactionForInvoiceProvider.overrideWith(
+            (ref, invoiceId) async => null,
+          ),
+        ],
+        child: child,
+      ),
+    );
+  });
+
+  testWidgets('invoice sent supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(tester, const InvoiceSentScreen());
+  });
+
   testWidgets('reports supports portrait, landscape and desktop', (
     tester,
   ) async {
@@ -207,6 +335,129 @@ void main() {
         child: child,
       ),
     );
+  });
+
+  testWidgets('settings supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    await pumpResponsiveScreen(
+      tester,
+      const SettingsScreen(),
+      buildScope: (child) => ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          currentUserProvider.overrideWithValue(null),
+        ],
+        child: child,
+      ),
+    );
+  });
+
+  testWidgets('manager approval supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(
+      tester,
+      const TransactionApprovalScreen(),
+      buildScope: (child) => ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) async => _manager),
+          accountsProvider.overrideWith(_FakeAccountsNotifier.new),
+          pendingTransactionsProvider.overrideWith(
+            (ref) async => _pendingTransactions,
+          ),
+        ],
+        child: child,
+      ),
+    );
+  });
+
+  testWidgets('account management supports portrait, landscape and desktop', (
+    tester,
+  ) async {
+    await pumpResponsiveScreen(
+      tester,
+      const AccountManagementScreen(),
+      buildScope: (child) => ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) async => _manager),
+          accountsProvider.overrideWith(_FakeAccountsNotifier.new),
+        ],
+        child: child,
+      ),
+    );
+  });
+
+  testWidgets('manager account cards stay compact and landscape uses a table', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) async => _manager),
+          accountsProvider.overrideWith(_FakeAccountsNotifier.new),
+        ],
+        child: const MaterialApp(home: AccountManagementScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DataTable), findsNothing);
+    expect(tester.getSize(find.byType(BentoCard).first).height, lessThan(160));
+
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    await tester.pumpAndSettle();
+    expect(find.byType(DataTable), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('manager approval empty state is compact on mobile', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) async => _manager),
+          accountsProvider.overrideWith(_FakeAccountsNotifier.new),
+          pendingTransactionsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: TransactionApprovalScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byType(BentoCard).first).height, lessThan(210));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('manager account form opens without landscape overflow', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) async => _manager),
+          accountsProvider.overrideWith(_FakeAccountsNotifier.new),
+        ],
+        child: const MaterialApp(home: AccountManagementScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Thêm tài khoản').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Email đăng nhập'), findsOneWidget);
+    expect(find.text('Tạo tài khoản'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('transaction history supports portrait, landscape and desktop', (

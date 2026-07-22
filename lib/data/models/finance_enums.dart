@@ -33,6 +33,63 @@ enum RecordStatus {
   }
 }
 
+enum AppRole {
+  manager('role_manager', 'MANAGER', 'Quản lý'),
+  accountant('role_accountant', 'ACCOUNTANT', 'Nhân viên kế toán');
+
+  const AppRole(this.roleId, this.databaseValue, this.label);
+
+  final String roleId;
+  final String databaseValue;
+  final String label;
+
+  static AppRole fromRoleId(Object? value) {
+    switch (value?.toString().toLowerCase()) {
+      case 'role_manager':
+      case 'role_01':
+      case 'role_02':
+      case 'role_09':
+        return AppRole.manager;
+      default:
+        return AppRole.accountant;
+    }
+  }
+
+  static AppRole fromDatabase(Object? value) {
+    switch (value?.toString().toUpperCase()) {
+      case 'MANAGER':
+      case 'ADMIN':
+      case 'OWNER':
+      case 'DIRECTOR':
+        return AppRole.manager;
+      default:
+        return AppRole.accountant;
+    }
+  }
+}
+
+enum ApprovalStatus {
+  pending('PENDING', 'Chờ duyệt'),
+  approved('APPROVED', 'Đã duyệt'),
+  rejected('REJECTED', 'Từ chối');
+
+  const ApprovalStatus(this.databaseValue, this.label);
+
+  final String databaseValue;
+  final String label;
+
+  static ApprovalStatus fromDatabase(Object? value) {
+    switch (value?.toString().toUpperCase()) {
+      case 'APPROVED':
+        return ApprovalStatus.approved;
+      case 'REJECTED':
+        return ApprovalStatus.rejected;
+      default:
+        return ApprovalStatus.pending;
+    }
+  }
+}
+
 enum InvoiceScanStatus {
   notScanned('NOT_SCANNED'),
   scanning('SCANNING'),

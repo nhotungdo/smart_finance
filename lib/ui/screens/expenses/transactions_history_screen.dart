@@ -234,7 +234,7 @@ class _HistoryTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${category?.categoryName ?? 'Chưa phân loại'} • ${DateFormat('dd/MM/yyyy').format(transaction.transactionDate)}',
+                    '${category?.categoryName ?? 'Chưa phân loại'} • ${DateFormat('dd/MM/yyyy').format(transaction.transactionDate)} • ${transaction.approvalStatus.label}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(

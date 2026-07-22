@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
@@ -8,6 +7,7 @@ import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:smart_finance/data/services/receipt_image_store.dart';
 import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
+import 'package:smart_finance/ui/formatters/vnd_currency_input_formatter.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/smart_button.dart';
 import 'package:smart_finance/ui/widgets/smart_text_field.dart';
@@ -42,7 +42,9 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     super.initState();
     final transaction = widget.transaction;
     if (transaction != null) {
-      _amountController.text = transaction.amount.toString();
+      _amountController.text = VndCurrencyInputFormatter.format(
+        transaction.amount,
+      );
       _descriptionController.text = transaction.description ?? '';
       _transactionType = transaction.transactionType;
       _selectedCategoryId = transaction.categoryId;
@@ -131,7 +133,9 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
         return;
       }
 
-      final amount = int.parse(_amountController.text.trim());
+      final amount = VndCurrencyInputFormatter.tryParse(
+        _amountController.text,
+      )!;
 
       setState(() => _isSaving = true);
       try {
@@ -197,6 +201,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
           child: SingleChildScrollView(
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -253,16 +258,12 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                     labelText: 'Số tiền',
                     prefixText: '₫ ',
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [VndCurrencyInputFormatter()],
                     validator: (value) {
-                      final rawValue = value?.trim() ?? '';
-                      if (rawValue.isEmpty) {
+                      if (value == null || value.trim().isEmpty) {
                         return 'Vui lòng nhập số tiền';
                       }
-                      if (!RegExp(r'^\d+$').hasMatch(rawValue)) {
-                        return 'Số tiền chỉ được chứa chữ số';
-                      }
-                      final amount = int.tryParse(rawValue);
+                      final amount = VndCurrencyInputFormatter.tryParse(value);
                       if (amount == null || amount <= 0) {
                         return 'Số tiền phải là số nguyên lớn hơn 0';
                       }

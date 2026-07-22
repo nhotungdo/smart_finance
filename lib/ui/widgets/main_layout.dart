@@ -1,43 +1,130 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:smart_finance/data/models/finance_enums.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/providers/theme_provider.dart';
 
 class MainLayout extends ConsumerWidget {
-  const MainLayout({super.key, required this.child});
+  const MainLayout({super.key, required this.currentPath, required this.child});
 
+  final String currentPath;
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDesktop = MediaQuery.sizeOf(context).width > 900;
-    return _AdaptiveScaffold(
-      isDesktop: isDesktop,
-      currentIndex: _selectedIndex(context),
-      child: child,
+    final profileState = ref.watch(currentUserProfileProvider);
+    return profileState.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => Scaffold(
+        body: Center(child: Text('Không thể tải quyền tài khoản: $error')),
+      ),
+      data: (profile) {
+        final role = profile?.role ?? AppRole.accountant;
+        final destinations = _destinationsFor(role);
+        final currentIndex = _selectedIndex(currentPath, destinations);
+        return _AdaptiveScaffold(
+          key: ValueKey(role),
+          isDesktop: isDesktop,
+          currentIndex: currentIndex,
+          destinations: destinations,
+          child: child,
+        );
+      },
     );
   }
 
-  int _selectedIndex(BuildContext context) {
-    final path = GoRouterState.of(context).uri.path;
-    if (path.startsWith('/dashboard')) return 0;
-    if (path.startsWith('/invoicing')) return 1;
-    if (path.startsWith('/expenses')) return 2;
-    if (path.startsWith('/reports')) return 3;
-    if (path.startsWith('/settings')) return 4;
-    return 0;
+  int _selectedIndex(
+    String path,
+    List<_NavigationDestinationData> destinations,
+  ) {
+    final index = destinations.indexWhere(
+      (destination) => path.startsWith(destination.path),
+    );
+    return index < 0 ? 0 : index;
   }
+}
+
+class _NavigationDestinationData {
+  const _NavigationDestinationData({
+    required this.icon,
+    required this.label,
+    required this.path,
+  });
+
+  final IconData icon;
+  final String label;
+  final String path;
+}
+
+List<_NavigationDestinationData> _destinationsFor(AppRole role) {
+  if (role == AppRole.manager) {
+    return const [
+      _NavigationDestinationData(
+        icon: Icons.fact_check_rounded,
+        label: 'Duyệt giao dịch',
+        path: '/manager/approvals',
+      ),
+      _NavigationDestinationData(
+        icon: Icons.manage_accounts_rounded,
+        label: 'Tài khoản',
+        path: '/manager/accounts',
+      ),
+      _NavigationDestinationData(
+        icon: Icons.bar_chart_rounded,
+        label: 'Báo cáo',
+        path: '/reports',
+      ),
+      _NavigationDestinationData(
+        icon: Icons.settings_rounded,
+        label: 'Cài đặt',
+        path: '/settings',
+      ),
+    ];
+  }
+  return const [
+    _NavigationDestinationData(
+      icon: Icons.dashboard_rounded,
+      label: 'Tổng quan',
+      path: '/dashboard',
+    ),
+    _NavigationDestinationData(
+      icon: Icons.receipt_long_rounded,
+      label: 'Hóa đơn',
+      path: '/invoicing',
+    ),
+    _NavigationDestinationData(
+      icon: Icons.payments_rounded,
+      label: 'Chi phí',
+      path: '/expenses',
+    ),
+    _NavigationDestinationData(
+      icon: Icons.bar_chart_rounded,
+      label: 'Báo cáo',
+      path: '/reports',
+    ),
+    _NavigationDestinationData(
+      icon: Icons.settings_rounded,
+      label: 'Cài đặt',
+      path: '/settings',
+    ),
+  ];
 }
 
 class _AdaptiveScaffold extends ConsumerWidget {
   const _AdaptiveScaffold({
+    super.key,
     required this.isDesktop,
     required this.currentIndex,
+    required this.destinations,
     required this.child,
   });
 
   final bool isDesktop;
   final int currentIndex;
+  final List<_NavigationDestinationData> destinations;
   final Widget child;
 
   @override
@@ -51,15 +138,26 @@ class _AdaptiveScaffold extends ConsumerWidget {
       body: Row(
         children: [
           if (isDesktop)
-            _DesktopSidebar(currentIndex: currentIndex, isDark: isDark),
+            _DesktopSidebar(
+              currentIndex: currentIndex,
+              isDark: isDark,
+              destinations: destinations,
+            ),
           Expanded(
-            child: SafeArea(top: isDesktop, left: !isDesktop, child: child),
+            child: SafeArea(
+              top: isDesktop,
+              left: !isDesktop,
+              child: ClipRect(child: RepaintBoundary(child: child)),
+            ),
           ),
         ],
       ),
       bottomNavigationBar: isDesktop
           ? null
-          : _MobileBottomNavigation(currentIndex: currentIndex),
+          : _MobileBottomNavigation(
+              currentIndex: currentIndex,
+              destinations: destinations,
+            ),
     );
   }
 
@@ -105,10 +203,15 @@ class _AdaptiveScaffold extends ConsumerWidget {
 }
 
 class _DesktopSidebar extends ConsumerWidget {
-  const _DesktopSidebar({required this.currentIndex, required this.isDark});
+  const _DesktopSidebar({
+    required this.currentIndex,
+    required this.isDark,
+    required this.destinations,
+  });
 
   final int currentIndex;
   final bool isDark;
+  final List<_NavigationDestinationData> destinations;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -159,41 +262,21 @@ class _DesktopSidebar extends ConsumerWidget {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _SidebarNavItem(
-                        icon: Icons.dashboard_rounded,
-                        label: 'Tổng quan',
-                        isActive: currentIndex == 0,
-                        onTap: currentIndex == 0
-                            ? null
-                            : () => context.go('/dashboard'),
-                      ),
-                      const SizedBox(height: 4),
-                      _SidebarNavItem(
-                        icon: Icons.receipt_long_rounded,
-                        label: 'Hóa đơn',
-                        isActive: currentIndex == 1,
-                        onTap: currentIndex == 1
-                            ? null
-                            : () => context.go('/invoicing'),
-                      ),
-                      const SizedBox(height: 4),
-                      _SidebarNavItem(
-                        icon: Icons.payments_rounded,
-                        label: 'Chi phí',
-                        isActive: currentIndex == 2,
-                        onTap: currentIndex == 2
-                            ? null
-                            : () => context.go('/expenses'),
-                      ),
-                      const SizedBox(height: 4),
-                      _SidebarNavItem(
-                        icon: Icons.bar_chart_rounded,
-                        label: 'Báo cáo',
-                        isActive: currentIndex == 3,
-                        onTap: currentIndex == 3
-                            ? null
-                            : () => context.go('/reports'),
-                      ),
+                      for (
+                        var index = 0;
+                        index < destinations.length - 1;
+                        index++
+                      ) ...[
+                        _SidebarNavItem(
+                          icon: destinations[index].icon,
+                          label: destinations[index].label,
+                          isActive: currentIndex == index,
+                          onTap: currentIndex == index
+                              ? null
+                              : () => context.go(destinations[index].path),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                     ],
                   ),
                 ),
@@ -206,12 +289,12 @@ class _DesktopSidebar extends ConsumerWidget {
                   const Divider(),
                   const SizedBox(height: 8),
                   _SidebarNavItem(
-                    icon: Icons.settings_rounded,
-                    label: 'Cài đặt',
-                    isActive: currentIndex == 4,
-                    onTap: currentIndex == 4
+                    icon: destinations.last.icon,
+                    label: destinations.last.label,
+                    isActive: currentIndex == destinations.length - 1,
+                    onTap: currentIndex == destinations.length - 1
                         ? null
-                        : () => context.go('/settings'),
+                        : () => context.go(destinations.last.path),
                   ),
                   const SizedBox(height: 4),
                   _SidebarNavItem(
@@ -324,9 +407,13 @@ class _SidebarNavItem extends StatelessWidget {
 }
 
 class _MobileBottomNavigation extends StatelessWidget {
-  const _MobileBottomNavigation({required this.currentIndex});
+  const _MobileBottomNavigation({
+    required this.currentIndex,
+    required this.destinations,
+  });
 
   final int currentIndex;
+  final List<_NavigationDestinationData> destinations;
 
   @override
   Widget build(BuildContext context) {
@@ -350,40 +437,15 @@ class _MobileBottomNavigation extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _BottomNavItem(
-                icon: Icons.dashboard_rounded,
-                label: 'Tổng quan',
-                isActive: currentIndex == 0,
-                onTap: currentIndex == 0
-                    ? null
-                    : () => context.go('/dashboard'),
-              ),
-              _BottomNavItem(
-                icon: Icons.receipt_long_rounded,
-                label: 'Hóa đơn',
-                isActive: currentIndex == 1,
-                onTap: currentIndex == 1
-                    ? null
-                    : () => context.go('/invoicing'),
-              ),
-              _BottomNavItem(
-                icon: Icons.payments_rounded,
-                label: 'Chi phí',
-                isActive: currentIndex == 2,
-                onTap: currentIndex == 2 ? null : () => context.go('/expenses'),
-              ),
-              _BottomNavItem(
-                icon: Icons.bar_chart_rounded,
-                label: 'Báo cáo',
-                isActive: currentIndex == 3,
-                onTap: currentIndex == 3 ? null : () => context.go('/reports'),
-              ),
-              _BottomNavItem(
-                icon: Icons.settings_rounded,
-                label: 'Cài đặt',
-                isActive: currentIndex == 4,
-                onTap: currentIndex == 4 ? null : () => context.go('/settings'),
-              ),
+              for (var index = 0; index < destinations.length; index++)
+                _BottomNavItem(
+                  icon: destinations[index].icon,
+                  label: destinations[index].label,
+                  isActive: currentIndex == index,
+                  onTap: currentIndex == index
+                      ? null
+                      : () => context.go(destinations[index].path),
+                ),
             ],
           ),
         ),

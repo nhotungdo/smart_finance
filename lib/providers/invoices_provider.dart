@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/ocr_result_model.dart';
+import 'package:smart_finance/data/models/user_model.dart';
 import 'package:smart_finance/data/repositories/invoice_repository.dart';
 import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -65,14 +66,33 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
 
   @override
   FutureOr<List<InvoiceModel>> build() async {
-    return _fetchInvoices();
+    final profile = await ref.watch(currentUserProfileProvider.future);
+    return _fetchInvoicesFor(profile);
   }
 
   Future<List<InvoiceModel>> _fetchInvoices() async {
     final profile = await ref.read(currentUserProfileProvider.future);
+    return _fetchInvoicesFor(profile);
+  }
+
+  Future<List<InvoiceModel>> _fetchInvoicesFor(UserModel? profile) async {
     final companyId = profile?.companyId;
     if (companyId == null) return [];
-    return _repository.getInvoices(companyId);
+    return _repository.getInvoices(
+      companyId,
+      createdBy: profile!.isAccountant ? profile.userId : null,
+    );
+  }
+
+  Future<T> _runMutation<T>(Future<T> Function() mutation) async {
+    try {
+      final result = await mutation();
+      state = AsyncData(await _fetchInvoices());
+      return result;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   /// Tạo hóa đơn mới và lưu lên cả local + Supabase
@@ -100,6 +120,7 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
       id: const Uuid().v4(),
       companyId: companyId,
       uploadedBy: user.id,
+      createdBy: user.id,
       invoiceType: invoiceType,
       supplierName: supplierName,
       supplierTaxCode: supplierTaxCode,
@@ -116,20 +137,12 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
       isSynced: false,
     );
 
-    state = const AsyncValue.loading();
-    String invoiceId = '';
-    state = await AsyncValue.guard(() async {
-      invoiceId = await _repository.addInvoice(invoice);
-      return _fetchInvoices();
-    });
-    return invoiceId;
+    return _runMutation(() => _repository.addInvoice(invoice));
   }
 
   Future<void> addInvoice(InvoiceModel invoice) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    await _runMutation(() async {
       await _repository.addInvoice(invoice);
-      return _fetchInvoices();
     });
   }
 
@@ -140,52 +153,54 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
     String? localImagePath,
     OcrResultModel? ocrResult,
   }) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await _repository.addInvoice(invoice);
+    await _runMutation(() async {
+      var inserted = false;
+      try {
+        await _repository.addInvoice(invoice);
+        inserted = true;
 
-      var savedInvoice = invoice;
-      if (imageBytes != null && imageFileName != null) {
-        final imageUrl = await _repository.uploadInvoiceImage(
-          invoiceId: invoice.id,
-          companyId: invoice.companyId,
-          bytes: imageBytes,
-          fileName: imageFileName,
-        );
-        savedInvoice = invoice.copyWith(
-          imagePath: imageUrl ?? localImagePath,
-          updatedAt: DateTime.now(),
-        );
-        await _repository.updateInvoice(savedInvoice);
+        var savedInvoice = invoice;
+        if (imageBytes != null && imageFileName != null) {
+          await _repository.cacheInvoiceImage(
+            invoiceId: invoice.id,
+            companyId: invoice.companyId,
+            bytes: imageBytes,
+            fileName: imageFileName,
+          );
+          savedInvoice = invoice.copyWith(
+            imagePath: localImagePath ?? invoice.imagePath,
+            updatedAt: DateTime.now(),
+          );
+          await _repository.updateInvoice(savedInvoice);
+        }
+
+        if (ocrResult != null) {
+          await _repository.saveOcrResult(
+            ocrResult.copyWith(invoiceId: savedInvoice.id),
+          );
+        }
+      } catch (_) {
+        if (inserted) {
+          try {
+            await _repository.deleteInvoice(invoice.id);
+          } catch (_) {
+            // Preserve the original save error.
+          }
+        }
+        rethrow;
       }
-
-      if (ocrResult != null) {
-        await _repository.saveOcrResult(
-          ocrResult.copyWith(invoiceId: savedInvoice.id),
-        );
-      }
-
-      return _fetchInvoices();
     });
-
-    if (state.hasError) {
-      Error.throwWithStackTrace(state.error!, state.stackTrace!);
-    }
   }
 
   Future<void> updateInvoice(InvoiceModel invoice) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    await _runMutation(() async {
       await _repository.updateInvoice(invoice);
-      return _fetchInvoices();
     });
   }
 
   Future<void> deleteInvoice(String id) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    await _runMutation(() async {
       await _repository.deleteInvoice(id);
-      return _fetchInvoices();
     });
   }
 

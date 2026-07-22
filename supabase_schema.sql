@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   invoice_id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   company_id TEXT REFERENCES public.companies(company_id) ON DELETE CASCADE,
   uploaded_by TEXT REFERENCES public.users(user_id) ON DELETE SET NULL,
+  created_by TEXT REFERENCES public.users(user_id) ON DELETE SET NULL,
   invoice_type TEXT NOT NULL DEFAULT 'EXPENSE'
     CHECK (invoice_type IN ('INCOME', 'EXPENSE')),
   supplier_name TEXT,
@@ -94,6 +95,11 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   receipt_image_path TEXT,
   status TEXT NOT NULL DEFAULT 'ACTIVE'
     CHECK (status IN ('ACTIVE', 'DELETED')),
+  approval_status TEXT NOT NULL DEFAULT 'PENDING'
+    CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  approved_by TEXT REFERENCES public.users(user_id) ON DELETE SET NULL,
+  approved_at TIMESTAMP WITH TIME ZONE,
+  rejection_reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE,
   is_synced SMALLINT DEFAULT 1
@@ -139,10 +145,32 @@ ALTER TABLE public.invoices
   ALTER COLUMN invoice_id SET DEFAULT gen_random_uuid()::text;
 
 ALTER TABLE public.invoices
-  ADD COLUMN IF NOT EXISTS invoice_type TEXT NOT NULL DEFAULT 'EXPENSE';
+  ADD COLUMN IF NOT EXISTS invoice_type TEXT;
+
+ALTER TABLE public.invoices
+  ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+UPDATE public.invoices SET created_by = uploaded_by WHERE created_by IS NULL;
 
 ALTER TABLE public.transactions
   ALTER COLUMN transaction_id SET DEFAULT gen_random_uuid()::text;
+
+ALTER TABLE public.transactions
+  ADD COLUMN IF NOT EXISTS approval_status TEXT,
+  ADD COLUMN IF NOT EXISTS approved_by TEXT,
+  ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+UPDATE public.transactions
+SET approval_status = CASE UPPER(COALESCE(approval_status, ''))
+  WHEN 'PENDING' THEN 'PENDING'
+  WHEN 'REJECTED' THEN 'REJECTED'
+  ELSE 'APPROVED'
+END;
+
+ALTER TABLE public.transactions
+  ALTER COLUMN approval_status SET DEFAULT 'PENDING',
+  ALTER COLUMN approval_status SET NOT NULL;
 
 ALTER TABLE public.ocr_results
   ALTER COLUMN ocr_result_id SET DEFAULT gen_random_uuid()::text;
@@ -207,7 +235,7 @@ WHERE vat_rate IS NOT NULL AND vat_rate NOT IN (8, 10);
 
 UPDATE public.invoices
 SET invoice_type = CASE
-  WHEN UPPER(invoice_type) = 'INCOME' THEN 'INCOME'
+  WHEN UPPER(COALESCE(invoice_type, '')) = 'INCOME' THEN 'INCOME'
   ELSE 'EXPENSE'
 END;
 
@@ -217,6 +245,9 @@ UPDATE public.users SET password_hash = NULL WHERE password_hash IS NOT NULL;
 ALTER TABLE public.users ALTER COLUMN status SET DEFAULT 'ACTIVE';
 ALTER TABLE public.categories ALTER COLUMN status SET DEFAULT 'ACTIVE';
 ALTER TABLE public.invoices ALTER COLUMN scan_status SET DEFAULT 'NOT_SCANNED';
+ALTER TABLE public.invoices
+  ALTER COLUMN invoice_type SET DEFAULT 'EXPENSE',
+  ALTER COLUMN invoice_type SET NOT NULL;
 ALTER TABLE public.transactions ALTER COLUMN status SET DEFAULT 'ACTIVE';
 ALTER TABLE public.ocr_results ALTER COLUMN status SET DEFAULT 'SCANNED';
 
@@ -241,6 +272,15 @@ ALTER TABLE public.transactions ADD CONSTRAINT transactions_transaction_type_che
 ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE public.transactions ADD CONSTRAINT transactions_status_check
   CHECK (status IN ('ACTIVE', 'DELETED'));
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_approval_status_check;
+ALTER TABLE public.transactions ADD CONSTRAINT transactions_approval_status_check
+  CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED'));
+ALTER TABLE public.invoices DROP CONSTRAINT IF EXISTS invoices_created_by_fkey;
+ALTER TABLE public.invoices ADD CONSTRAINT invoices_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES public.users(user_id) ON DELETE SET NULL;
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_approved_by_fkey;
+ALTER TABLE public.transactions ADD CONSTRAINT transactions_approved_by_fkey
+  FOREIGN KEY (approved_by) REFERENCES public.users(user_id) ON DELETE SET NULL;
 ALTER TABLE public.invoices DROP CONSTRAINT IF EXISTS invoices_invoice_type_check;
 ALTER TABLE public.invoices ADD CONSTRAINT invoices_invoice_type_check
   CHECK (invoice_type IN ('INCOME', 'EXPENSE'));
@@ -251,6 +291,10 @@ ALTER TABLE public.ocr_results ADD CONSTRAINT ocr_results_status_check
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_active_invoice_idx
 ON public.transactions(invoice_id)
 WHERE invoice_id IS NOT NULL AND status = 'ACTIVE';
+
+CREATE INDEX IF NOT EXISTS transactions_company_approval_idx
+ON public.transactions(company_id, approval_status, transaction_date DESC)
+WHERE status = 'ACTIVE';
 
 -- Merge legacy duplicate categories before enforcing semantic uniqueness.
 WITH ranked_categories AS (
@@ -324,8 +368,7 @@ BEGIN
 
   SELECT role_id INTO default_role_id
   FROM public.roles
-  WHERE UPPER(role_name) IN ('OWNER', 'ADMIN')
-  ORDER BY CASE WHEN UPPER(role_name) = 'OWNER' THEN 0 ELSE 1 END
+  WHERE role_id = 'role_manager'
   LIMIT 1;
 
   INSERT INTO public.users (
@@ -390,8 +433,7 @@ BEGIN
 
   SELECT role_id INTO default_role_id
   FROM public.roles
-  WHERE UPPER(role_name) IN ('OWNER', 'ADMIN')
-  ORDER BY CASE WHEN UPPER(role_name) = 'OWNER' THEN 0 ELSE 1 END
+  WHERE role_id = 'role_manager'
   LIMIT 1;
 
   INSERT INTO public.users (
@@ -413,6 +455,119 @@ $$;
 
 REVOKE ALL ON FUNCTION public.handle_new_auth_user_row(uuid, text, jsonb)
 FROM PUBLIC;
+
+-- Auth users created by the manager Edge Function join the manager's company.
+-- The regular three-argument helper above remains the self-registration path.
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user_row(
+  auth_user_id uuid,
+  auth_email text,
+  auth_metadata jsonb,
+  auth_app_metadata jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  new_company_id text;
+  requested_company_id text;
+  requested_role_id text;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.users WHERE user_id = auth_user_id::text
+  ) THEN
+    RETURN;
+  END IF;
+
+  requested_company_id := NULLIF(
+    TRIM(auth_app_metadata ->> 'smart_finance_company_id'),
+    ''
+  );
+  requested_role_id := NULLIF(
+    TRIM(auth_app_metadata ->> 'smart_finance_role_id'),
+    ''
+  );
+
+  IF requested_company_id IS NOT NULL
+     AND requested_role_id IN ('role_manager', 'role_accountant')
+     AND EXISTS (
+       SELECT 1 FROM public.companies
+       WHERE company_id = requested_company_id
+     ) THEN
+    INSERT INTO public.users (
+      user_id, company_id, role_id, full_name, email, status
+    )
+    VALUES (
+      auth_user_id::text,
+      requested_company_id,
+      requested_role_id,
+      COALESCE(
+        NULLIF(TRIM(auth_metadata ->> 'full_name'), ''),
+        COALESCE(auth_email, 'Nhân viên mới')
+      ),
+      COALESCE(auth_email, auth_user_id::text || '@pending.local'),
+      'ACTIVE'
+    );
+    RETURN;
+  END IF;
+
+  INSERT INTO public.companies (company_name)
+  VALUES (
+    COALESCE(
+      NULLIF(TRIM(auth_metadata ->> 'business_name'), ''),
+      'Doanh nghiệp của ' || COALESCE(auth_email, auth_user_id::text)
+    )
+  )
+  RETURNING company_id INTO new_company_id;
+
+  INSERT INTO public.users (
+    user_id, company_id, role_id, full_name, email, status
+  )
+  VALUES (
+    auth_user_id::text,
+    new_company_id,
+    'role_manager',
+    COALESCE(
+      NULLIF(TRIM(auth_metadata ->> 'full_name'), ''),
+      COALESCE(auth_email, 'Người dùng mới')
+    ),
+    COALESCE(auth_email, auth_user_id::text || '@pending.local'),
+    'ACTIVE'
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.handle_new_auth_user_row(
+  uuid,
+  text,
+  jsonb,
+  jsonb
+) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM public.handle_new_auth_user_row(
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data,
+    NEW.raw_app_meta_data
+  );
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.handle_new_auth_user() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
 -- Backfill helper for Auth users created before the trigger existed.
 CREATE OR REPLACE FUNCTION public.ensure_user_profile()
@@ -438,7 +593,8 @@ BEGIN
   PERFORM public.handle_new_auth_user_row(
     auth_user.id,
     auth_user.email,
-    auth_user.raw_user_meta_data
+    auth_user.raw_user_meta_data,
+    auth_user.raw_app_meta_data
   );
 END;
 $$;
@@ -462,6 +618,51 @@ $$;
 
 REVOKE ALL ON FUNCTION public.current_company_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_company_id() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.current_role_name()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT UPPER(r.role_name)
+  FROM public.users u
+  JOIN public.roles r ON r.role_id = u.role_id
+  WHERE u.user_id = auth.uid()::text
+    AND u.status = 'ACTIVE'
+  LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION public.current_role_name() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_role_name() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.protect_user_access_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN NEW; END IF;
+  IF NEW.role_id IS DISTINCT FROM OLD.role_id
+     OR NEW.status IS DISTINCT FROM OLD.status
+     OR NEW.company_id IS DISTINCT FROM OLD.company_id THEN
+    IF public.current_role_name() <> 'MANAGER' THEN
+      RAISE EXCEPTION 'Only managers can change role, status or company';
+    END IF;
+    IF OLD.user_id = auth.uid()::text THEN
+      RAISE EXCEPTION 'Managers cannot change their own access';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS protect_user_access_fields ON public.users;
+CREATE TRIGGER protect_user_access_fields
+BEFORE UPDATE ON public.users
+FOR EACH ROW EXECUTE FUNCTION public.protect_user_access_fields();
 
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -494,8 +695,15 @@ DROP POLICY IF EXISTS "Enable select for users based on user_id" ON public.users
 DROP POLICY IF EXISTS "Enable update for users based on user_id" ON public.users;
 DROP POLICY IF EXISTS "Users view own profile" ON public.users;
 DROP POLICY IF EXISTS "Users update own profile" ON public.users;
+DROP POLICY IF EXISTS "Managers view company users" ON public.users;
+DROP POLICY IF EXISTS "Managers update company users" ON public.users;
 CREATE POLICY "Users view own profile" ON public.users
 FOR SELECT TO authenticated USING (user_id = auth.uid()::text);
+CREATE POLICY "Managers view company users" ON public.users
+FOR SELECT TO authenticated USING (
+  public.current_role_name() = 'MANAGER'
+  AND company_id = public.current_company_id()
+);
 CREATE POLICY "Users update own profile" ON public.users
 FOR UPDATE TO authenticated
 USING (user_id = auth.uid()::text)
@@ -503,6 +711,13 @@ WITH CHECK (
   user_id = auth.uid()::text
   AND company_id = public.current_company_id()
 );
+CREATE POLICY "Managers update company users" ON public.users
+FOR UPDATE TO authenticated
+USING (
+  public.current_role_name() = 'MANAGER'
+  AND company_id = public.current_company_id()
+)
+WITH CHECK (company_id = public.current_company_id());
 
 DROP POLICY IF EXISTS "Company members manage categories" ON public.categories;
 CREATE POLICY "Company members manage categories" ON public.categories
@@ -511,21 +726,73 @@ USING (company_id = public.current_company_id())
 WITH CHECK (company_id = public.current_company_id());
 
 DROP POLICY IF EXISTS "Company members manage invoices" ON public.invoices;
-CREATE POLICY "Company members manage invoices" ON public.invoices
+DROP POLICY IF EXISTS "Accountants manage own invoices" ON public.invoices;
+DROP POLICY IF EXISTS "Managers view company invoices" ON public.invoices;
+CREATE POLICY "Accountants manage own invoices" ON public.invoices
 FOR ALL TO authenticated
-USING (company_id = public.current_company_id())
-WITH CHECK (
+USING (
   company_id = public.current_company_id()
-  AND uploaded_by = auth.uid()::text
+  AND created_by = auth.uid()::text
+)
+WITH CHECK (
+  public.current_role_name() = 'ACCOUNTANT'
+  AND company_id = public.current_company_id()
+  AND created_by = auth.uid()::text
+);
+CREATE POLICY "Managers view company invoices" ON public.invoices
+FOR SELECT TO authenticated USING (
+  public.current_role_name() = 'MANAGER'
+  AND company_id = public.current_company_id()
 );
 
 DROP POLICY IF EXISTS "Company members manage transactions" ON public.transactions;
-CREATE POLICY "Company members manage transactions" ON public.transactions
-FOR ALL TO authenticated
-USING (company_id = public.current_company_id())
-WITH CHECK (
-  company_id = public.current_company_id()
+DROP POLICY IF EXISTS "Accountants manage own pending transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Accountants view own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Accountants create own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Accountants update own pending transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Managers review company transactions" ON public.transactions;
+CREATE POLICY "Accountants view own transactions" ON public.transactions
+FOR SELECT TO authenticated
+USING (
+  public.current_role_name() = 'ACCOUNTANT'
+  AND company_id = public.current_company_id()
   AND created_by = auth.uid()::text
+);
+CREATE POLICY "Accountants create own transactions" ON public.transactions
+FOR INSERT TO authenticated
+WITH CHECK (
+  public.current_role_name() = 'ACCOUNTANT'
+  AND company_id = public.current_company_id()
+  AND created_by = auth.uid()::text
+  AND approval_status = 'PENDING'
+  AND approved_by IS NULL
+  AND approved_at IS NULL
+);
+CREATE POLICY "Accountants update own pending transactions" ON public.transactions
+FOR UPDATE TO authenticated
+USING (
+  public.current_role_name() = 'ACCOUNTANT'
+  AND approval_status = 'PENDING'
+  AND company_id = public.current_company_id()
+  AND created_by = auth.uid()::text
+)
+WITH CHECK (
+  public.current_role_name() = 'ACCOUNTANT'
+  AND company_id = public.current_company_id()
+  AND created_by = auth.uid()::text
+  AND approval_status = 'PENDING'
+  AND approved_by IS NULL
+  AND approved_at IS NULL
+);
+CREATE POLICY "Managers review company transactions" ON public.transactions
+FOR ALL TO authenticated
+USING (
+  public.current_role_name() = 'MANAGER'
+  AND company_id = public.current_company_id()
+)
+WITH CHECK (
+  public.current_role_name() = 'MANAGER'
+  AND company_id = public.current_company_id()
 );
 
 DROP POLICY IF EXISTS "Company members manage OCR results" ON public.ocr_results;
@@ -614,32 +881,24 @@ INSERT INTO public.companies (company_id, company_name, tax_code, address, phone
 ('comp_10', 'Công ty TNHH Dịch vụ Bảo vệ Toàn Cầu', '0100123456', 'Vũng Tàu', '0900123456')
 ON CONFLICT DO NOTHING;
 
--- 2. ROLES (10 records)
+-- 2. ROLES
 INSERT INTO public.roles (role_id, role_name, description) VALUES 
-('role_01', 'Admin', 'Quản trị viên hệ thống'),
-('role_02', 'Manager', 'Quản lý cửa hàng/chi nhánh'),
-('role_03', 'Accountant', 'Nhân viên kế toán'),
-('role_04', 'Sales', 'Nhân viên kinh doanh'),
-('role_05', 'HR', 'Nhân sự'),
-('role_06', 'IT Support', 'Hỗ trợ kỹ thuật'),
-('role_07', 'Marketing', 'Nhân viên tiếp thị'),
-('role_08', 'Auditor', 'Kiểm toán viên'),
-('role_09', 'Director', 'Giám đốc'),
-('role_10', 'Viewer', 'Chỉ xem dữ liệu')
+('role_manager', 'MANAGER', 'Quản lý'),
+('role_accountant', 'ACCOUNTANT', 'Nhân viên kế toán')
 ON CONFLICT DO NOTHING;
 
 -- 3. USERS (10 records)
 INSERT INTO public.users (user_id, company_id, role_id, full_name, email, phone) VALUES
-('user_01', 'comp_01', 'role_01', 'Nguyễn Văn A', 'nguyenvana@gmail.com', '0901111111'),
-('user_02', 'comp_02', 'role_02', 'Trần Thị B', 'tranthib@gmail.com', '0902222222'),
-('user_03', 'comp_03', 'role_03', 'Lê Văn C', 'levanc@gmail.com', '0903333333'),
-('user_04', 'comp_04', 'role_04', 'Phạm Thị D', 'phamthid@gmail.com', '0904444444'),
-('user_05', 'comp_05', 'role_05', 'Hoàng Văn E', 'hoangvane@gmail.com', '0905555555'),
-('user_06', 'comp_06', 'role_06', 'Đỗ Thị F', 'dothif@gmail.com', '0906666666'),
-('user_07', 'comp_07', 'role_07', 'Ngô Văn G', 'ngovang@gmail.com', '0907777777'),
-('user_08', 'comp_08', 'role_08', 'Vũ Thị H', 'vuthih@gmail.com', '0908888888'),
-('user_09', 'comp_09', 'role_09', 'Đặng Văn I', 'dangvani@gmail.com', '0909999999'),
-('user_10', 'comp_10', 'role_10', 'Bùi Thị K', 'buithik@gmail.com', '0910000000')
+('user_01', 'comp_01', 'role_manager', 'Nguyễn Văn A', 'nguyenvana@gmail.com', '0901111111'),
+('user_02', 'comp_02', 'role_manager', 'Trần Thị B', 'tranthib@gmail.com', '0902222222'),
+('user_03', 'comp_03', 'role_accountant', 'Lê Văn C', 'levanc@gmail.com', '0903333333'),
+('user_04', 'comp_04', 'role_accountant', 'Phạm Thị D', 'phamthid@gmail.com', '0904444444'),
+('user_05', 'comp_05', 'role_accountant', 'Hoàng Văn E', 'hoangvane@gmail.com', '0905555555'),
+('user_06', 'comp_06', 'role_accountant', 'Đỗ Thị F', 'dothif@gmail.com', '0906666666'),
+('user_07', 'comp_07', 'role_accountant', 'Ngô Văn G', 'ngovang@gmail.com', '0907777777'),
+('user_08', 'comp_08', 'role_accountant', 'Vũ Thị H', 'vuthih@gmail.com', '0908888888'),
+('user_09', 'comp_09', 'role_manager', 'Đặng Văn I', 'dangvani@gmail.com', '0909999999'),
+('user_10', 'comp_10', 'role_accountant', 'Bùi Thị K', 'buithik@gmail.com', '0910000000')
 ON CONFLICT DO NOTHING;
 
 -- 4. CATEGORIES (10 records)
@@ -657,31 +916,31 @@ INSERT INTO public.categories (category_id, company_id, category_name, category_
 ON CONFLICT DO NOTHING;
 
 -- 5. INVOICES (10 records)
-INSERT INTO public.invoices (invoice_id, company_id, uploaded_by, supplier_name, supplier_tax_code, invoice_number, subtotal, vat_rate, vat_amount, total_amount, scan_status) VALUES 
-('inv_01', 'comp_01', 'user_01', 'Nhà cung cấp A', '0101111111', 'HD-001', 1000000, 10, 100000, 1100000, 'SCANNED'),
-('inv_02', 'comp_02', 'user_02', 'Nhà cung cấp B', '0102222222', 'HD-002', 2000000, 10, 200000, 2200000, 'SCANNED'),
-('inv_03', 'comp_03', 'user_03', 'Nhà cung cấp C', '0103333333', 'HD-003', 3000000, 8, 240000, 3240000, 'NOT_SCANNED'),
-('inv_04', 'comp_04', 'user_04', 'Nhà cung cấp D', '0104444444', 'HD-004', 4000000, 10, 400000, 4400000, 'ERROR'),
-('inv_05', 'comp_05', 'user_05', 'Nhà cung cấp E', '0105555555', 'HD-005', 5000000, 10, 500000, 5500000, 'SCANNED'),
-('inv_06', 'comp_06', 'user_06', 'Nhà cung cấp F', '0106666666', 'HD-006', 6000000, 10, 600000, 6600000, 'SCANNED'),
-('inv_07', 'comp_07', 'user_07', 'Nhà cung cấp G', '0107777777', 'HD-007', 7000000, 10, 700000, 7700000, 'NOT_SCANNED'),
-('inv_08', 'comp_08', 'user_08', 'Nhà cung cấp H', '0108888888', 'HD-008', 8000000, 8, 640000, 8640000, 'SCANNED'),
-('inv_09', 'comp_09', 'user_09', 'Nhà cung cấp I', '0109999999', 'HD-009', 9000000, 10, 900000, 9900000, 'SCANNED'),
-('inv_10', 'comp_10', 'user_10', 'Nhà cung cấp K', '0100000000', 'HD-010', 10000000, 10, 1000000, 11000000, 'NOT_SCANNED')
+INSERT INTO public.invoices (invoice_id, company_id, uploaded_by, created_by, supplier_name, supplier_tax_code, invoice_number, subtotal, vat_rate, vat_amount, total_amount, scan_status) VALUES
+('inv_01', 'comp_01', 'user_01', 'user_01', 'Nhà cung cấp A', '0101111111', 'HD-001', 1000000, 10, 100000, 1100000, 'SCANNED'),
+('inv_02', 'comp_02', 'user_02', 'user_02', 'Nhà cung cấp B', '0102222222', 'HD-002', 2000000, 10, 200000, 2200000, 'SCANNED'),
+('inv_03', 'comp_03', 'user_03', 'user_03', 'Nhà cung cấp C', '0103333333', 'HD-003', 3000000, 8, 240000, 3240000, 'NOT_SCANNED'),
+('inv_04', 'comp_04', 'user_04', 'user_04', 'Nhà cung cấp D', '0104444444', 'HD-004', 4000000, 10, 400000, 4400000, 'ERROR'),
+('inv_05', 'comp_05', 'user_05', 'user_05', 'Nhà cung cấp E', '0105555555', 'HD-005', 5000000, 10, 500000, 5500000, 'SCANNED'),
+('inv_06', 'comp_06', 'user_06', 'user_06', 'Nhà cung cấp F', '0106666666', 'HD-006', 6000000, 10, 600000, 6600000, 'SCANNED'),
+('inv_07', 'comp_07', 'user_07', 'user_07', 'Nhà cung cấp G', '0107777777', 'HD-007', 7000000, 10, 700000, 7700000, 'NOT_SCANNED'),
+('inv_08', 'comp_08', 'user_08', 'user_08', 'Nhà cung cấp H', '0108888888', 'HD-008', 8000000, 8, 640000, 8640000, 'SCANNED'),
+('inv_09', 'comp_09', 'user_09', 'user_09', 'Nhà cung cấp I', '0109999999', 'HD-009', 9000000, 10, 900000, 9900000, 'SCANNED'),
+('inv_10', 'comp_10', 'user_10', 'user_10', 'Nhà cung cấp K', '0100000000', 'HD-010', 10000000, 10, 1000000, 11000000, 'NOT_SCANNED')
 ON CONFLICT DO NOTHING;
 
 -- 6. TRANSACTIONS (10 records)
-INSERT INTO public.transactions (transaction_id, company_id, category_id, created_by, invoice_id, amount, transaction_type, transaction_date, description, status) VALUES 
-('trans_01', 'comp_01', 'cat_01', 'user_01', 'inv_01', 1100000, 'EXPENSE', NOW(), 'Thanh toán HD-001', 'ACTIVE'),
-('trans_02', 'comp_02', 'cat_03', 'user_02', 'inv_02', 2200000, 'EXPENSE', NOW(), 'Thanh toán HD-002', 'ACTIVE'),
-('trans_03', 'comp_03', 'cat_05', 'user_03', 'inv_03', 3240000, 'EXPENSE', NOW(), 'Thanh toán HD-003', 'ACTIVE'),
-('trans_04', 'comp_04', 'cat_07', 'user_04', 'inv_04', 4400000, 'EXPENSE', NOW(), 'Thanh toán HD-004', 'ACTIVE'),
-('trans_05', 'comp_05', 'cat_09', 'user_05', 'inv_05', 5500000, 'EXPENSE', NOW(), 'Thanh toán HD-005', 'ACTIVE'),
-('trans_06', 'comp_01', 'cat_02', 'user_01', NULL, 15000000, 'INCOME', NOW(), 'Doanh thu bán hàng tháng 1', 'ACTIVE'),
-('trans_07', 'comp_02', 'cat_04', 'user_02', NULL, 25000000, 'INCOME', NOW(), 'Doanh thu dịch vụ tháng 1', 'ACTIVE'),
-('trans_08', 'comp_03', 'cat_06', 'user_03', NULL, 35000000, 'INCOME', NOW(), 'Lợi nhuận đầu tư', 'ACTIVE'),
-('trans_09', 'comp_04', 'cat_08', 'user_04', NULL, 45000000, 'INCOME', NOW(), 'Chiết khấu bán hàng', 'ACTIVE'),
-('trans_10', 'comp_05', 'cat_10', 'user_05', NULL, 55000000, 'INCOME', NOW(), 'Hoàn thuế GTGT', 'ACTIVE')
+INSERT INTO public.transactions (transaction_id, company_id, category_id, created_by, invoice_id, amount, transaction_type, transaction_date, description, status, approval_status) VALUES
+('trans_01', 'comp_01', 'cat_01', 'user_01', 'inv_01', 1100000, 'EXPENSE', NOW(), 'Thanh toán HD-001', 'ACTIVE', 'APPROVED'),
+('trans_02', 'comp_02', 'cat_03', 'user_02', 'inv_02', 2200000, 'EXPENSE', NOW(), 'Thanh toán HD-002', 'ACTIVE', 'APPROVED'),
+('trans_03', 'comp_03', 'cat_05', 'user_03', 'inv_03', 3240000, 'EXPENSE', NOW(), 'Thanh toán HD-003', 'ACTIVE', 'APPROVED'),
+('trans_04', 'comp_04', 'cat_07', 'user_04', 'inv_04', 4400000, 'EXPENSE', NOW(), 'Thanh toán HD-004', 'ACTIVE', 'APPROVED'),
+('trans_05', 'comp_05', 'cat_09', 'user_05', 'inv_05', 5500000, 'EXPENSE', NOW(), 'Thanh toán HD-005', 'ACTIVE', 'APPROVED'),
+('trans_06', 'comp_01', 'cat_02', 'user_01', NULL, 15000000, 'INCOME', NOW(), 'Doanh thu bán hàng tháng 1', 'ACTIVE', 'APPROVED'),
+('trans_07', 'comp_02', 'cat_04', 'user_02', NULL, 25000000, 'INCOME', NOW(), 'Doanh thu dịch vụ tháng 1', 'ACTIVE', 'APPROVED'),
+('trans_08', 'comp_03', 'cat_06', 'user_03', NULL, 35000000, 'INCOME', NOW(), 'Lợi nhuận đầu tư', 'ACTIVE', 'APPROVED'),
+('trans_09', 'comp_04', 'cat_08', 'user_04', NULL, 45000000, 'INCOME', NOW(), 'Chiết khấu bán hàng', 'ACTIVE', 'APPROVED'),
+('trans_10', 'comp_05', 'cat_10', 'user_05', NULL, 55000000, 'INCOME', NOW(), 'Hoàn thuế GTGT', 'ACTIVE', 'APPROVED')
 ON CONFLICT DO NOTHING;
 
 -- 7. OCR_RESULTS (10 records)

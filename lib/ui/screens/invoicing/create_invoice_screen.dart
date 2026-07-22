@@ -1,8 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,12 +8,14 @@ import 'package:uuid/uuid.dart';
 import 'package:smart_finance/providers/ocr_provider.dart';
 import 'package:smart_finance/providers/invoices_provider.dart';
 import 'package:smart_finance/providers/auth_provider.dart';
+import 'package:smart_finance/providers/categories_provider.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/ocr_result_model.dart';
 import 'package:smart_finance/data/models/transaction_model.dart';
 import 'package:smart_finance/providers/transactions_provider.dart';
 import 'package:smart_finance/domain/services/finance_calculator.dart';
+import 'package:smart_finance/ui/formatters/vnd_currency_input_formatter.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/smart_button.dart';
 import 'package:smart_finance/ui/widgets/smart_text_field.dart';
@@ -42,6 +41,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   bool _isPopulatedFromOcr = false;
   bool _isSaving = false;
   TransactionType _invoiceType = TransactionType.expense;
+  String? _selectedCategoryId;
+  String? _detectedCategoryName;
   DateTime _invoiceDate = DateTime.now();
   int _vatRate = 10;
   final String _invoiceId = const Uuid().v4();
@@ -66,6 +67,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     final source = widget.sourceTransaction;
     if (source != null) {
       _invoiceType = TransactionType.expense;
+      _selectedCategoryId = source.categoryId;
       _invoiceDate = source.transactionDate;
       _selectedImagePath = source.receiptImagePath;
       _fillAmountsFromSource();
@@ -126,6 +128,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       _selectedImagePath = pickedImage.path;
       _isPopulatedFromOcr = false;
       _ocrResult = null;
+      if (widget.sourceTransaction == null) {
+        _selectedCategoryId = null;
+        _detectedCategoryName = null;
+      }
     });
 
     NavigatorState? scanNavigator;
@@ -173,16 +179,68 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
     final result = ocrState.value;
     if (result == null) return;
-    final raw = jsonDecode(result.rawMockData ?? '{}') as Map<String, dynamic>;
+    final raw = result.mockData;
     final rawVatRate = (raw['vat_rate'] as num?)?.round() ?? 10;
+
+    var detectedType = _invoiceType;
+    var detectedCategoryId = _selectedCategoryId;
+    var detectedCategoryName = _detectedCategoryName;
+    if (widget.sourceTransaction == null) {
+      final mockType = result.extractedTransactionType;
+      final mockCategoryName = result.extractedCategoryName;
+      if (mockType == null || mockCategoryName == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'OCR chưa nhận diện được loại giao dịch và danh mục.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final categories = await ref.read(categoriesProvider.future);
+      for (final category in categories) {
+        final sameName =
+            category.categoryName.trim().toLowerCase() ==
+            mockCategoryName.toLowerCase();
+        if (category.categoryType == mockType &&
+            category.status == RecordStatus.active &&
+            sameName) {
+          detectedType = mockType;
+          detectedCategoryId = category.categoryId;
+          detectedCategoryName = category.categoryName;
+          break;
+        }
+      }
+
+      if (detectedCategoryId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Không tìm thấy danh mục "$mockCategoryName" trong công ty.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
       _ocrResult = result;
+      _invoiceType = detectedType;
+      _selectedCategoryId = detectedCategoryId;
+      _detectedCategoryName = detectedCategoryName;
       _supplierController.text = result.extractedSupplierName ?? '';
       _taxCodeController.text = result.extractedTaxCode ?? '';
       _vatRate = rawVatRate == 8 ? 8 : 10;
       if (widget.sourceTransaction == null) {
-        _subtotalController.text =
-            (raw['subtotal'] as num?)?.round().toString() ?? '';
+        final subtotal = (raw['subtotal'] as num?)?.round();
+        _subtotalController.text = subtotal == null
+            ? ''
+            : VndCurrencyInputFormatter.format(subtotal);
         _recalculateTotal();
       } else {
         _fillAmountsFromSource();
@@ -198,8 +256,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   }
 
   void _recalculateTotal() {
-    final subtotal = int.tryParse(
-      _subtotalController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+    final subtotal = VndCurrencyInputFormatter.tryParse(
+      _subtotalController.text,
     );
     if (subtotal == null) {
       _amountController.clear();
@@ -211,7 +269,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
             total: widget.sourceTransaction!.amount,
             vatRate: _vatRate,
           );
-    _amountController.text = vat.total.toString();
+    _amountController.text = VndCurrencyInputFormatter.format(vat.total);
   }
 
   void _fillAmountsFromSource() {
@@ -221,8 +279,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       total: source.amount,
       vatRate: _vatRate,
     );
-    _subtotalController.text = vat.subtotal.toString();
-    _amountController.text = vat.total.toString();
+    _subtotalController.text = VndCurrencyInputFormatter.format(vat.subtotal);
+    _amountController.text = VndCurrencyInputFormatter.format(vat.total);
   }
 
   Future<void> _onSavePressed() async {
@@ -239,9 +297,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       return;
     }
 
-    final subtotal = int.parse(
-      _subtotalController.text.replaceAll(RegExp(r'[^0-9]'), ''),
-    );
+    final subtotal = VndCurrencyInputFormatter.tryParse(
+      _subtotalController.text,
+    )!;
     final vat = widget.sourceTransaction == null
         ? FinanceCalculator.calculateVat(subtotal: subtotal, vatRate: _vatRate)
         : FinanceCalculator.calculateVatFromTotal(
@@ -292,9 +350,16 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
               transactionId: source.transactionId,
               invoiceId: _invoiceId,
             );
+      } else {
+        await ref
+            .read(transactionsProvider.notifier)
+            .createTransactionFromInvoice(
+              invoice: invoice,
+              categoryId: _selectedCategoryId!,
+            );
       }
     } catch (error) {
-      if (invoiceSaved && widget.sourceTransaction != null) {
+      if (invoiceSaved) {
         try {
           await ref.read(invoicesProvider.notifier).deleteInvoice(_invoiceId);
         } catch (_) {
@@ -326,8 +391,6 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.sizeOf(context).width > 768;
-
     final ocrState = ref.watch(ocrProvider);
 
     return Scaffold(
@@ -337,44 +400,49 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 896),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(theme, isDesktop, ocrState),
-                  const SizedBox(height: 32),
+            child: LayoutBuilder(
+              builder: (context, contentConstraints) {
+                final isDesktop = contentConstraints.maxWidth >= 880;
+                return Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(theme, isDesktop, ocrState),
+                      const SizedBox(height: 32),
 
-                  if (widget.sourceTransaction != null) ...[
-                    _buildSourceTransactionNotice(theme),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Wrap the sections in a responsive row/col for Bento styling
-                  if (isDesktop)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildClientDetails(theme)),
-                        const SizedBox(width: 20),
-                        Expanded(child: _buildTotalDetails(theme)),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        _buildClientDetails(theme),
+                      if (widget.sourceTransaction != null) ...[
+                        _buildSourceTransactionNotice(theme),
                         const SizedBox(height: 20),
-                        _buildTotalDetails(theme),
                       ],
-                    ),
 
-                  const SizedBox(height: 20),
-                  _buildLineItems(context, theme, ocrState.isLoading),
-                  const SizedBox(height: 20),
-                  _buildActions(context, theme),
-                ],
-              ),
+                      if (isDesktop)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildClientDetails(theme)),
+                            const SizedBox(width: 20),
+                            Expanded(child: _buildTotalDetails(theme)),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            _buildClientDetails(theme),
+                            const SizedBox(height: 20),
+                            _buildTotalDetails(theme),
+                          ],
+                        ),
+
+                      const SizedBox(height: 20),
+                      _buildLineItems(context, theme, ocrState.isLoading),
+                      const SizedBox(height: 20),
+                      _buildActions(context, theme),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -403,25 +471,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                 ),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tạo hóa đơn mới',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Soạn hóa đơn để lưu vào hệ thống.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+              if (isDesktop)
+                _buildHeaderCopy(theme)
+              else
+                Expanded(child: _buildHeaderCopy(theme)),
             ],
           ),
           if (!isDesktop) const SizedBox(height: 24),
@@ -445,6 +498,32 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeaderCopy(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tạo hóa đơn mới',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Soạn hóa đơn để lưu vào hệ thống.',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 
@@ -507,29 +586,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<TransactionType>(
-              segments: const [
-                ButtonSegment(
-                  value: TransactionType.income,
-                  icon: Icon(Icons.south_west_rounded),
-                  label: Text('Hóa đơn thu'),
-                ),
-                ButtonSegment(
-                  value: TransactionType.expense,
-                  icon: Icon(Icons.north_east_rounded),
-                  label: Text('Hóa đơn chi'),
-                ),
-              ],
-              selected: {_invoiceType},
-              onSelectionChanged: widget.sourceTransaction == null
-                  ? (selection) {
-                      setState(() => _invoiceType = selection.first);
-                    }
-                  : null,
-            ),
-          ),
+          _buildDetectedClassification(theme),
           const SizedBox(height: 16),
           SmartTextField(
             controller: _supplierController,
@@ -547,9 +604,68 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     );
   }
 
+  Widget _buildDetectedClassification(ThemeData theme) {
+    final categoriesState = ref.watch(categoriesProvider);
+    var categoryName = _detectedCategoryName;
+    for (final category in categoriesState.value ?? const []) {
+      if (category.categoryId == _selectedCategoryId) {
+        categoryName = category.categoryName;
+        break;
+      }
+    }
+
+    final fromSource = widget.sourceTransaction != null;
+    final hasClassification =
+        fromSource || (_isPopulatedFromOcr && _selectedCategoryId != null);
+    final transactionLabel = hasClassification
+        ? (_invoiceType == TransactionType.income ? 'Thu' : 'Chi')
+        : 'Chưa nhận diện';
+    final categoryLabel = hasClassification
+        ? (categoryName ?? 'Chưa phân loại')
+        : 'Chưa nhận diện';
+
+    return FormField<bool>(
+      validator: (_) {
+        if (fromSource) return null;
+        if (categoriesState.isLoading) return 'Đang tải danh mục';
+        if (!_isPopulatedFromOcr || _selectedCategoryId == null) {
+          return 'Hãy quét hóa đơn để nhận diện loại giao dịch và danh mục';
+        }
+        return null;
+      },
+      builder: (field) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InputDecorator(
+            isEmpty: !hasClassification,
+            decoration: const InputDecoration(
+              labelText: 'Loại giao dịch',
+              prefixIcon: Icon(Icons.swap_vert_rounded),
+            ),
+            child: Text(transactionLabel),
+          ),
+          const SizedBox(height: 16),
+          InputDecorator(
+            isEmpty: !hasClassification,
+            decoration: InputDecoration(
+              labelText: 'Danh mục',
+              prefixIcon: const Icon(Icons.category_outlined),
+              errorText: field.errorText,
+            ),
+            child: Text(
+              categoryLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTotalDetails(ThemeData theme) {
-    final parsedSubtotal = int.tryParse(
-      _subtotalController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+    final parsedSubtotal = VndCurrencyInputFormatter.tryParse(
+      _subtotalController.text,
     );
     final displayedVat = widget.sourceTransaction == null
         ? FinanceCalculator.calculateVat(
@@ -577,18 +693,19 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           SmartTextField(
             controller: _subtotalController,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [VndCurrencyInputFormatter()],
             labelText: 'Tiền trước thuế (VNĐ)',
             onChanged: (_) => setState(() {
               if (widget.sourceTransaction == null) {
                 _recalculateTotal();
               } else {
-                _amountController.text = widget.sourceTransaction!.amount
-                    .toString();
+                _amountController.text = VndCurrencyInputFormatter.format(
+                  widget.sourceTransaction!.amount,
+                );
               }
             }),
             validator: (value) {
-              final subtotal = int.tryParse((value ?? '').trim());
+              final subtotal = VndCurrencyInputFormatter.tryParse(value);
               if (subtotal == null || subtotal <= 0) {
                 return 'Số tiền phải lớn hơn 0';
               }

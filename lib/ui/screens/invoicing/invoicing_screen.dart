@@ -467,6 +467,10 @@ class _InvoiceListCard extends ConsumerWidget {
     String amount,
     String status,
   ) {
+    final linkedState = ref.watch(
+      linkedTransactionForInvoiceProvider(invoice.id),
+    );
+    final linkedTransaction = linkedState.value;
     return DataRow(
       cells: [
         DataCell(
@@ -515,12 +519,22 @@ class _InvoiceListCard extends ConsumerWidget {
                   onPressed: () => _exportInvoice(context, ref, invoice),
                 ),
                 IconButton(
-                  tooltip: invoice.invoiceType == TransactionType.income
-                      ? 'Tạo khoản thu'
-                      : 'Tạo chi phí',
-                  icon: const Icon(Icons.add_card_rounded),
-                  onPressed: () =>
-                      _createTransactionFromInvoice(context, ref, invoice),
+                  tooltip: linkedState.isLoading
+                      ? 'Đang kiểm tra giao dịch'
+                      : linkedTransaction == null
+                      ? invoice.invoiceType == TransactionType.income
+                            ? 'Tạo khoản thu'
+                            : 'Tạo chi phí'
+                      : 'Đã liên kết giao dịch',
+                  icon: Icon(
+                    linkedTransaction == null
+                        ? Icons.add_card_rounded
+                        : Icons.link_rounded,
+                  ),
+                  onPressed: !linkedState.isLoading && linkedTransaction == null
+                      ? () =>
+                            _createTransactionFromInvoice(context, ref, invoice)
+                      : null,
                 ),
               ],
             ),
@@ -541,6 +555,10 @@ class _InvoiceListCard extends ConsumerWidget {
     String amount,
     String status,
   ) {
+    final linkedState = ref.watch(
+      linkedTransactionForInvoiceProvider(invoice.id),
+    );
+    final linkedTransaction = linkedState.value;
     return InkWell(
       onTap: () => context.push('/invoicing/preview/${invoice.id}'),
       child: Padding(
@@ -624,17 +642,31 @@ class _InvoiceListCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    tooltip: invoice.invoiceType == TransactionType.income
-                        ? 'Tạo khoản thu'
-                        : 'Tạo chi phí',
+                    tooltip: linkedState.isLoading
+                        ? 'Đang kiểm tra giao dịch'
+                        : linkedTransaction == null
+                        ? invoice.invoiceType == TransactionType.income
+                              ? 'Tạo khoản thu'
+                              : 'Tạo chi phí'
+                        : 'Đã liên kết giao dịch',
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints.tightFor(
                       width: 40,
                       height: 40,
                     ),
-                    onPressed: () =>
-                        _createTransactionFromInvoice(context, ref, invoice),
-                    icon: const Icon(Icons.add_card_rounded),
+                    onPressed:
+                        !linkedState.isLoading && linkedTransaction == null
+                        ? () => _createTransactionFromInvoice(
+                            context,
+                            ref,
+                            invoice,
+                          )
+                        : null,
+                    icon: Icon(
+                      linkedTransaction == null
+                          ? Icons.add_card_rounded
+                          : Icons.link_rounded,
+                    ),
                   ),
                 ],
               ),

@@ -39,8 +39,12 @@ class CompanyModel {
       taxCode: map['tax_code'] as String?,
       address: map['address'] as String?,
       phone: map['phone'] as String?,
-      createdAt: map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : null,
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : null,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'] as String)
+          : null,
       isSynced: (map['is_synced'] as int?) == 1,
     );
   }

@@ -12,9 +12,9 @@ class InvoiceSentScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
             child: BentoCard(
@@ -31,10 +31,14 @@ class InvoiceSentScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           theme.colorScheme.primaryContainer,
-                          theme.colorScheme.primaryContainer.withValues(alpha: 0.8),
+                          theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.8,
+                          ),
                         ],
                       ),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                     child: Stack(
                       children: [
@@ -45,7 +49,8 @@ class InvoiceSentScreen extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.2),
+                              color: theme.colorScheme.secondaryContainer
+                                  .withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -58,7 +63,9 @@ class InvoiceSentScreen extends StatelessWidget {
                             child: Container(
                               width: 16,
                               height: 16,
-                              color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
+                              color: theme.colorScheme.tertiary.withValues(
+                                alpha: 0.3,
+                              ),
                             ),
                           ),
                         ),
@@ -80,12 +87,15 @@ class InvoiceSentScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerLowest,
                               shape: BoxShape.circle,
-                              border: Border.all(color: theme.colorScheme.surfaceContainerLowest, width: 4),
+                              border: Border.all(
+                                color: theme.colorScheme.surfaceContainerLowest,
+                                width: 4,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 8,
-                                )
+                                ),
                               ],
                             ),
                             alignment: Alignment.center,
@@ -128,34 +138,78 @@ class InvoiceSentScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 12,
+                                  runSpacing: 12,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text('SỐ TIỀN PHẢI TRẢ', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                                        Text(
+                                          'SỐ TIỀN PHẢI TRẢ',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
                                         const SizedBox(height: 4),
-                                        Text('\$4,250.00', style: theme.textTheme.headlineMedium?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                                        Text(
+                                          '\$4,250.00',
+                                          style: theme.textTheme.headlineMedium
+                                              ?.copyWith(
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
                                       ],
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.tertiaryContainer,
+                                        color:
+                                            theme.colorScheme.tertiaryContainer,
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Container(width: 8, height: 8, decoration: BoxDecoration(color: theme.colorScheme.onTertiaryContainer, shape: BoxShape.circle)),
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onTertiaryContainer,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
                                           const SizedBox(width: 6),
-                                          Text('Đã gửi', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onTertiaryContainer)),
+                                          Text(
+                                            'Đã gửi',
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onTertiaryContainer,
+                                                ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -168,21 +222,55 @@ class InvoiceSentScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text('SỐ HÓA ĐƠN', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                                          Text(
+                                            'SỐ HÓA ĐƠN',
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text('INV-2023-089', style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'Inter', color: theme.colorScheme.primary)),
+                                          Text(
+                                            'INV-2023-089',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontFamily: 'Inter',
+                                                  color:
+                                                      theme.colorScheme.primary,
+                                                ),
+                                          ),
                                         ],
                                       ),
                                     ),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text('KHÁCH HÀNG', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                                          Text(
+                                            'KHÁCH HÀNG',
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text('Acme Corp Ltd.', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                                          Text(
+                                            'Acme Corp Ltd.',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      theme.colorScheme.primary,
+                                                ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -194,26 +282,44 @@ class InvoiceSentScreen extends StatelessWidget {
                           const SizedBox(height: 32),
 
                           // Actions
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SmartButton.outlined(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.share, size: 18),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  child: const Text('Chia sẻ liên kết'),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 420;
+                              final shareButton = SmartButton.outlined(
+                                onPressed: () {},
+                                icon: const Icon(Icons.share, size: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SmartButton.outlined(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.download, size: 18),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  child: const Text('Tải xuống PDF'),
+                                child: const Text('Chia sẻ liên kết'),
+                              );
+                              final downloadButton = SmartButton.outlined(
+                                onPressed: () {},
+                                icon: const Icon(Icons.download, size: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
                                 ),
-                              ),
-                            ],
+                                child: const Text('Tải xuống PDF'),
+                              );
+                              if (compact) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    shareButton,
+                                    const SizedBox(height: 12),
+                                    downloadButton,
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(child: shareButton),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: downloadButton),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
                           SizedBox(

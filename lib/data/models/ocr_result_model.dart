@@ -11,6 +11,33 @@ class OcrResultModel {
   final String? rawMockData;
   final InvoiceScanStatus status;
   final DateTime scannedAt;
+  final bool isSynced;
+
+  Map<String, dynamic> get mockData {
+    final source = rawMockData;
+    if (source == null || source.isEmpty) return const {};
+    try {
+      final decoded = json.decode(source);
+      return decoded is Map<String, dynamic> ? decoded : const {};
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  TransactionType? get extractedTransactionType {
+    final value = mockData['transaction_type'];
+    if (value == null) return null;
+    try {
+      return TransactionType.fromDatabase(value);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  String? get extractedCategoryName {
+    final value = mockData['category_name']?.toString().trim();
+    return value == null || value.isEmpty ? null : value;
+  }
 
   OcrResultModel({
     required this.id,
@@ -21,6 +48,7 @@ class OcrResultModel {
     this.rawMockData,
     this.status = InvoiceScanStatus.scanned,
     required this.scannedAt,
+    this.isSynced = false,
   });
 
   OcrResultModel copyWith({
@@ -32,6 +60,7 @@ class OcrResultModel {
     String? rawMockData,
     InvoiceScanStatus? status,
     DateTime? scannedAt,
+    bool? isSynced,
   }) {
     return OcrResultModel(
       id: id ?? this.id,
@@ -43,6 +72,7 @@ class OcrResultModel {
       rawMockData: rawMockData ?? this.rawMockData,
       status: status ?? this.status,
       scannedAt: scannedAt ?? this.scannedAt,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
@@ -56,6 +86,7 @@ class OcrResultModel {
       'raw_mock_data': rawMockData,
       'status': status.databaseValue,
       'scanned_at': scannedAt.toIso8601String(),
+      'is_synced': isSynced ? 1 : 0,
     };
   }
 
@@ -71,6 +102,7 @@ class OcrResultModel {
       scannedAt: DateTime.parse(
         map['scanned_at'] ?? DateTime.now().toIso8601String(),
       ),
+      isSynced: map['is_synced'] == 1,
     );
   }
 

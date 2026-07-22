@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_finance/data/models/finance_enums.dart';
 import 'package:smart_finance/data/models/invoice_model.dart';
 import 'package:smart_finance/data/models/transaction_model.dart';
+import 'package:smart_finance/data/models/user_model.dart';
 import 'package:smart_finance/data/repositories/transaction_repository.dart';
 import 'package:smart_finance/providers/auth_provider.dart';
 
@@ -12,15 +13,40 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
   @override
   Future<List<TransactionModel>> build() async {
-    return _fetchTransactions();
+    final profile = await ref.watch(currentUserProfileProvider.future);
+    return _fetchTransactionsFor(profile);
   }
 
   Future<List<TransactionModel>> _fetchTransactions() async {
-    final repo = ref.read(transactionRepositoryProvider);
     final profile = await ref.read(currentUserProfileProvider.future);
+    return _fetchTransactionsFor(profile);
+  }
+
+  Future<List<TransactionModel>> _fetchTransactionsFor(
+    UserModel? profile,
+  ) async {
+    final repo = ref.read(transactionRepositoryProvider);
     final companyId = profile?.companyId;
-    if (companyId == null) return [];
-    return repo.getRecentTransactions(companyId: companyId);
+    if (profile == null || companyId == null) return [];
+    if (profile.isAccountant) {
+      await repo.ensureTransactionsForInvoices(
+        companyId: companyId,
+        createdBy: profile.userId,
+      );
+    }
+    return repo.getRecentTransactions(
+      companyId: companyId,
+      createdBy: profile.isAccountant ? profile.userId : null,
+    );
+  }
+
+  Future<void> _reloadAfterMutation() async {
+    try {
+      state = AsyncData(await _fetchTransactions());
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> addTransaction({
@@ -50,9 +76,7 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
           companyId: companyId,
           createdBy: profile.userId,
         );
-    // Refresh list
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(_fetchTransactions);
+    await _reloadAfterMutation();
     ref.invalidate(allTransactionsProvider);
     if (invoiceId != null) {
       ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
@@ -63,8 +87,7 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
     await ref
         .read(transactionRepositoryProvider)
         .deleteTransaction(transactionId);
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(_fetchTransactions);
+    await _reloadAfterMutation();
     ref.invalidate(allTransactionsProvider);
     ref.invalidate(transactionDetailProvider(transactionId));
   }
@@ -73,8 +96,7 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
     await ref
         .read(transactionRepositoryProvider)
         .updateTransaction(transaction);
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(_fetchTransactions);
+    await _reloadAfterMutation();
     ref.invalidate(allTransactionsProvider);
     ref.invalidate(transactionDetailProvider(transaction.transactionId));
   }
@@ -89,8 +111,7 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
           transactionId: transactionId,
           invoiceId: invoiceId,
         );
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(_fetchTransactions);
+    await _reloadAfterMutation();
     ref.invalidate(allTransactionsProvider);
     ref.invalidate(transactionDetailProvider(transactionId));
     ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
@@ -120,6 +141,29 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
       invoiceId: invoice.id,
     );
   }
+
+  Future<void> reviewTransaction({
+    required String transactionId,
+    required ApprovalStatus decision,
+    String? rejectionReason,
+  }) async {
+    final profile = await ref.read(currentUserProfileProvider.future);
+    if (profile == null || !profile.isManager) {
+      throw StateError('Chỉ quản lý mới được duyệt giao dịch.');
+    }
+    await ref
+        .read(transactionRepositoryProvider)
+        .reviewTransaction(
+          transactionId: transactionId,
+          managerId: profile.userId,
+          decision: decision,
+          rejectionReason: rejectionReason,
+        );
+    ref.invalidateSelf();
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(managerTransactionsProvider);
+    ref.invalidate(transactionDetailProvider(transactionId));
+  }
 }
 
 final transactionsProvider =
@@ -130,33 +174,55 @@ final transactionsProvider =
 final allTransactionsProvider = FutureProvider<List<TransactionModel>>((
   ref,
 ) async {
-  await ref.watch(transactionsProvider.future);
   final profile = await ref.watch(currentUserProfileProvider.future);
   final companyId = profile?.companyId;
   if (companyId == null) return [];
   return ref
       .read(transactionRepositoryProvider)
-      .getRecentTransactions(companyId: companyId, limit: null);
+      .getRecentTransactions(
+        companyId: companyId,
+        createdBy: profile!.isAccountant ? profile.userId : null,
+        limit: null,
+      );
+});
+
+final managerTransactionsProvider = FutureProvider<List<TransactionModel>>((
+  ref,
+) async {
+  final profile = await ref.watch(currentUserProfileProvider.future);
+  if (profile == null || !profile.isManager || profile.companyId == null) {
+    return [];
+  }
+  return ref
+      .read(transactionRepositoryProvider)
+      .getRecentTransactions(companyId: profile.companyId, limit: null);
+});
+
+final pendingTransactionsProvider = FutureProvider<List<TransactionModel>>((
+  ref,
+) async {
+  final transactions = await ref.watch(managerTransactionsProvider.future);
+  return transactions
+      .where((item) => item.approvalStatus == ApprovalStatus.pending)
+      .toList();
 });
 
 final transactionDetailProvider = FutureProvider.autoDispose
     .family<TransactionModel?, String>((ref, transactionId) async {
-      final cachedTransactions = ref.watch(transactionsProvider).value ?? [];
-      for (final transaction in cachedTransactions) {
-        if (transaction.transactionId == transactionId) return transaction;
-      }
-
       final profile = await ref.watch(currentUserProfileProvider.future);
       final companyId = profile?.companyId;
       if (companyId == null) return null;
       return ref
           .read(transactionRepositoryProvider)
-          .getTransactionById(transactionId, companyId: companyId);
+          .getTransactionById(
+            transactionId,
+            companyId: companyId,
+            createdBy: profile!.isAccountant ? profile.userId : null,
+          );
     });
 
 final linkedTransactionForInvoiceProvider = FutureProvider.autoDispose
     .family<TransactionModel?, String>((ref, invoiceId) async {
-      await ref.watch(transactionsProvider.future);
       return ref
           .read(transactionRepositoryProvider)
           .getActiveTransactionForInvoice(invoiceId);

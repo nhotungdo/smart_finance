@@ -89,6 +89,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -329,8 +330,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 16),
 
                     Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             'Đã có tài khoản? ',
@@ -338,6 +340,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           SmartButton.text(
                             onPressed: () => context.go('/login'),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'Đăng nhập',
                               style: TextStyle(

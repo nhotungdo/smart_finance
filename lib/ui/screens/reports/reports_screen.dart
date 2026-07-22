@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:smart_finance/ui/widgets/bento_card.dart';
 import 'package:smart_finance/ui/widgets/page_header.dart';
 import 'package:smart_finance/providers/reports_provider.dart';
+import 'package:smart_finance/providers/auth_provider.dart';
 import 'package:smart_finance/data/models/report_model.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final isDesktop = MediaQuery.sizeOf(context).width > 900;
     final reportState = ref.watch(reportsProvider);
     final selectedPeriod = ref.watch(reportPeriodProvider);
+    final isManager =
+        ref.watch(currentUserProfileProvider).value?.isManager ?? false;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -34,7 +37,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               children: [
                 PageHeader(
                   title: 'Báo cáo tài chính',
-                  subtitle: 'Phân tích chi tiết theo từng kỳ báo cáo.',
+                  subtitle: isManager
+                      ? 'Tổng hợp giao dịch đã duyệt của toàn bộ nhân viên.'
+                      : 'Phân tích giao dịch đã duyệt của tài khoản hiện tại.',
                 ),
                 const SizedBox(height: 16),
                 // ── Bộ lọc thời gian ──
@@ -82,6 +87,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       ),
                     ),
                     data: (reportExt) {
+                      final summary = reportExt.current.summary;
+                      final invoiceComparison = reportExt.invoiceComparison;
                       final barChart = _buildBarChartCard(theme, reportExt);
                       final pieChart = _buildPieChartCard(theme, reportExt);
                       final summaryTable = _buildSummaryTable(
@@ -96,7 +103,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       );
 
                       return KeyedSubtree(
-                        key: ValueKey('data-${reportExt.period.name}'),
+                        key: ValueKey(
+                          'data-${reportExt.period.name}-'
+                          '${summary.totalIncome}-${summary.totalExpense}-'
+                          '${invoiceComparison.invoiceIncomeTotal}-'
+                          '${invoiceComparison.invoiceExpenseTotal}',
+                        ),
                         child: _buildReportContent(
                           barChart: barChart,
                           pieChart: pieChart,

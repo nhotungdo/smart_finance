@@ -12,6 +12,10 @@ class TransactionModel {
   final String? description;
   final String? receiptImagePath;
   final RecordStatus status;
+  final ApprovalStatus approvalStatus;
+  final String? approvedBy;
+  final DateTime? approvedAt;
+  final String? rejectionReason;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isSynced;
@@ -28,6 +32,10 @@ class TransactionModel {
     this.description,
     this.receiptImagePath,
     this.status = RecordStatus.active,
+    this.approvalStatus = ApprovalStatus.pending,
+    this.approvedBy,
+    this.approvedAt,
+    this.rejectionReason,
     this.createdAt,
     this.updatedAt,
     this.isSynced = false,
@@ -45,6 +53,11 @@ class TransactionModel {
     String? description,
     String? receiptImagePath,
     RecordStatus? status,
+    ApprovalStatus? approvalStatus,
+    String? approvedBy,
+    DateTime? approvedAt,
+    String? rejectionReason,
+    bool clearApproval = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
@@ -61,6 +74,12 @@ class TransactionModel {
       description: description ?? this.description,
       receiptImagePath: receiptImagePath ?? this.receiptImagePath,
       status: status ?? this.status,
+      approvalStatus: approvalStatus ?? this.approvalStatus,
+      approvedBy: clearApproval ? null : approvedBy ?? this.approvedBy,
+      approvedAt: clearApproval ? null : approvedAt ?? this.approvedAt,
+      rejectionReason: clearApproval
+          ? null
+          : rejectionReason ?? this.rejectionReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
@@ -80,6 +99,10 @@ class TransactionModel {
       'description': description,
       'receipt_image_path': receiptImagePath,
       'status': status.databaseValue,
+      'approval_status': approvalStatus.databaseValue,
+      'approved_by': approvedBy,
+      'approved_at': approvedAt?.toIso8601String(),
+      'rejection_reason': rejectionReason,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'is_synced': isSynced ? 1 : 0,
@@ -99,6 +122,12 @@ class TransactionModel {
       description: map['description'] as String?,
       receiptImagePath: map['receipt_image_path'] as String?,
       status: RecordStatus.fromDatabase(map['status']),
+      approvalStatus: ApprovalStatus.fromDatabase(map['approval_status']),
+      approvedBy: map['approved_by'] as String?,
+      approvedAt: map['approved_at'] != null
+          ? DateTime.parse(map['approved_at'] as String)
+          : null,
+      rejectionReason: map['rejection_reason'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
