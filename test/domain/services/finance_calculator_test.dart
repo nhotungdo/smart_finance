@@ -105,7 +105,7 @@ void main() {
       );
     });
 
-    // 4. Test tính ngược Thuế VAT từ Tổng Tiền (Tính năng mở rộng)
+    // 4. Test tính ngược Thuế VAT từ Tổng Tiền
     test('calculateVatFromTotal should extract correct Subtotal and VAT amount', () {
       // Nếu Tổng tiền là 1.100.000 và VAT 10% thì Subtotal phải là 1.000.000 và VAT là 100.000
       final extractedVat = FinanceCalculator.calculateVatFromTotal(total: 1100000, vatRate: 10);
