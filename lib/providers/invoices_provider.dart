@@ -70,11 +70,6 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
     return _fetchInvoicesFor(profile);
   }
 
-  Future<List<InvoiceModel>> _fetchInvoices() async {
-    final profile = await ref.read(currentUserProfileProvider.future);
-    return _fetchInvoicesFor(profile);
-  }
-
   Future<List<InvoiceModel>> _fetchInvoicesFor(UserModel? profile) async {
     final companyId = profile?.companyId;
     if (companyId == null) return [];
@@ -87,10 +82,9 @@ class InvoicesNotifier extends AsyncNotifier<List<InvoiceModel>> {
   Future<T> _runMutation<T>(Future<T> Function() mutation) async {
     try {
       final result = await mutation();
-      state = AsyncData(await _fetchInvoices());
+      ref.invalidateSelf();
       return result;
     } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
       Error.throwWithStackTrace(error, stackTrace);
     }
   }

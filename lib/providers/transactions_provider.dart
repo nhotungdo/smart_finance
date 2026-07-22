@@ -17,35 +17,27 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
     return _fetchTransactionsFor(profile);
   }
 
-  Future<List<TransactionModel>> _fetchTransactions() async {
-    final profile = await ref.read(currentUserProfileProvider.future);
-    return _fetchTransactionsFor(profile);
-  }
-
   Future<List<TransactionModel>> _fetchTransactionsFor(
     UserModel? profile,
   ) async {
     final repo = ref.read(transactionRepositoryProvider);
     final companyId = profile?.companyId;
     if (profile == null || companyId == null) return [];
-    if (profile.isAccountant) {
-      await repo.ensureTransactionsForInvoices(
-        companyId: companyId,
-        createdBy: profile.userId,
-      );
-    }
     return repo.getRecentTransactions(
       companyId: companyId,
       createdBy: profile.isAccountant ? profile.userId : null,
     );
   }
 
-  Future<void> _reloadAfterMutation() async {
-    try {
-      state = AsyncData(await _fetchTransactions());
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-      Error.throwWithStackTrace(error, stackTrace);
+  void _invalidateTransactionViews({String? transactionId, String? invoiceId}) {
+    ref.invalidateSelf();
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(managerTransactionsProvider);
+    if (transactionId != null) {
+      ref.invalidate(transactionDetailProvider(transactionId));
+    }
+    if (invoiceId != null) {
+      ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
     }
   }
 
@@ -76,29 +68,21 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
           companyId: companyId,
           createdBy: profile.userId,
         );
-    await _reloadAfterMutation();
-    ref.invalidate(allTransactionsProvider);
-    if (invoiceId != null) {
-      ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
-    }
+    _invalidateTransactionViews(invoiceId: invoiceId);
   }
 
   Future<void> deleteTransaction(String transactionId) async {
     await ref
         .read(transactionRepositoryProvider)
         .deleteTransaction(transactionId);
-    await _reloadAfterMutation();
-    ref.invalidate(allTransactionsProvider);
-    ref.invalidate(transactionDetailProvider(transactionId));
+    _invalidateTransactionViews(transactionId: transactionId);
   }
 
   Future<void> updateTransaction(TransactionModel transaction) async {
     await ref
         .read(transactionRepositoryProvider)
         .updateTransaction(transaction);
-    await _reloadAfterMutation();
-    ref.invalidate(allTransactionsProvider);
-    ref.invalidate(transactionDetailProvider(transaction.transactionId));
+    _invalidateTransactionViews(transactionId: transaction.transactionId);
   }
 
   Future<void> linkInvoiceToTransaction({
@@ -111,10 +95,10 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
           transactionId: transactionId,
           invoiceId: invoiceId,
         );
-    await _reloadAfterMutation();
-    ref.invalidate(allTransactionsProvider);
-    ref.invalidate(transactionDetailProvider(transactionId));
-    ref.invalidate(linkedTransactionForInvoiceProvider(invoiceId));
+    _invalidateTransactionViews(
+      transactionId: transactionId,
+      invoiceId: invoiceId,
+    );
   }
 
   Future<void> createTransactionFromInvoice({
@@ -159,10 +143,7 @@ class TransactionsNotifier extends AsyncNotifier<List<TransactionModel>> {
           decision: decision,
           rejectionReason: rejectionReason,
         );
-    ref.invalidateSelf();
-    ref.invalidate(allTransactionsProvider);
-    ref.invalidate(managerTransactionsProvider);
-    ref.invalidate(transactionDetailProvider(transactionId));
+    _invalidateTransactionViews(transactionId: transactionId);
   }
 }
 

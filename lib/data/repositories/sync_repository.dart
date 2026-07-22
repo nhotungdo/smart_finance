@@ -109,16 +109,18 @@ class SyncRepository {
       );
     }
 
-    pushedCat = await _pushTable(
-      label: 'Categories',
-      fetchUnsynced: () =>
-          _categoryRepo.getUnsyncedCategories(companyId: companyId),
-      buildPayload: (e) => e.toMap()..remove('is_synced'),
-      getIds: (list) => list.map((e) => e.categoryId).toList(),
-      supabaseTable: 'categories',
-      markSynced: _categoryRepo.markAsSynced,
-      errors: errors,
-    );
+    if (role == AppRole.accountant) {
+      pushedCat = await _pushTable(
+        label: 'Categories',
+        fetchUnsynced: () =>
+            _categoryRepo.getUnsyncedCategories(companyId: companyId),
+        buildPayload: (e) => e.toMap()..remove('is_synced'),
+        getIds: (list) => list.map((e) => e.categoryId).toList(),
+        supabaseTable: 'categories',
+        markSynced: _categoryRepo.markAsSynced,
+        errors: errors,
+      );
+    }
 
     if (canManageInvoices) {
       final imageResult = await _invoiceRepo.uploadPendingInvoiceImages(
@@ -238,16 +240,19 @@ class SyncRepository {
       );
     }
 
-    final pushedCat = await _pushTable(
-      label: 'Categories',
-      fetchUnsynced: () =>
-          _categoryRepo.getUnsyncedCategories(companyId: companyId),
-      buildPayload: (e) => e.toMap()..remove('is_synced'),
-      getIds: (list) => list.map((e) => e.categoryId).toList(),
-      supabaseTable: 'categories',
-      markSynced: _categoryRepo.markAsSynced,
-      errors: errors,
-    );
+    var pushedCat = 0;
+    if (role == AppRole.accountant) {
+      pushedCat = await _pushTable(
+        label: 'Categories',
+        fetchUnsynced: () =>
+            _categoryRepo.getUnsyncedCategories(companyId: companyId),
+        buildPayload: (e) => e.toMap()..remove('is_synced'),
+        getIds: (list) => list.map((e) => e.categoryId).toList(),
+        supabaseTable: 'categories',
+        markSynced: _categoryRepo.markAsSynced,
+        errors: errors,
+      );
+    }
 
     if (canManageInvoices) {
       final imageResult = await _invoiceRepo.uploadPendingInvoiceImages(
@@ -333,7 +338,8 @@ class SyncRepository {
   }) async {
     final db = await _localDb.database;
     final queries = <String>[
-      '''
+      if (role == AppRole.accountant)
+        '''
       SELECT COUNT(*) AS item_count
       FROM categories
       WHERE is_synced = 0 AND company_id = ?
@@ -363,7 +369,7 @@ class SyncRepository {
       ''',
     ];
     final arguments = <Object?>[
-      companyId,
+      if (role == AppRole.accountant) companyId,
       companyId,
       userId,
       companyId,

@@ -10,6 +10,7 @@ import 'package:smart_finance/providers/invoices_provider.dart';
 class _FakeInvoiceRepository implements InvoiceRepository {
   int fetchCount = 0;
   final requests = <(String companyId, String? createdBy)>[];
+  final invoices = <InvoiceModel>[];
 
   @override
   Future<List<InvoiceModel>> getInvoices(
@@ -18,7 +19,19 @@ class _FakeInvoiceRepository implements InvoiceRepository {
   }) async {
     fetchCount++;
     requests.add((companyId, createdBy));
-    return const [];
+    return invoices
+        .where(
+          (invoice) =>
+              invoice.companyId == companyId &&
+              (createdBy == null || invoice.createdBy == createdBy),
+        )
+        .toList();
+  }
+
+  @override
+  Future<String> addInvoice(InvoiceModel invoice) async {
+    invoices.add(invoice);
+    return invoice.id;
   }
 
   @override
@@ -133,5 +146,44 @@ void main() {
     await container.read(invoicesProvider.future);
     expect(repository.requests.last, ('company-b', 'accountant-b'));
     expect(repository.fetchCount, 2);
+  });
+
+  test('saving an invoice refreshes without a provider cycle', () async {
+    final repository = _FakeInvoiceRepository();
+    final container = ProviderContainer(
+      overrides: [
+        invoiceRepositoryProvider.overrideWithValue(repository),
+        currentUserProfileProvider.overrideWith(
+          (ref) async => UserModel(
+            userId: 'accountant-1',
+            companyId: 'company-1',
+            roleId: AppRole.accountant.roleId,
+            fullName: 'Accountant',
+            email: 'accountant@example.com',
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(invoicesProvider.future);
+
+    final now = DateTime(2026, 7, 22);
+    await container
+        .read(invoicesProvider.notifier)
+        .saveReviewedInvoice(
+          invoice: InvoiceModel(
+            id: 'invoice-new',
+            companyId: 'company-1',
+            uploadedBy: 'accountant-1',
+            createdBy: 'accountant-1',
+            totalAmount: 3850000,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    final invoices = await container.read(invoicesProvider.future);
+    expect(invoices.map((invoice) => invoice.id), ['invoice-new']);
+    expect(container.read(invoicesProvider).hasError, isFalse);
   });
 }

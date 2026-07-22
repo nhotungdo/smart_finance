@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -35,7 +37,7 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
@@ -79,7 +81,67 @@ class LocalDatabase {
     if (oldVersion < 9) {
       await _migrateSyncOwnership(db);
     }
+    if (oldVersion < 10) {
+      await _repairOcrTransactionCategories(db);
+    }
     await _createIndexes(db);
+  }
+
+  Future<void> _repairOcrTransactionCategories(Database db) async {
+    final rows = await db.rawQuery('''
+      SELECT
+        t.transaction_id,
+        t.company_id,
+        t.transaction_type,
+        o.raw_mock_data
+      FROM transactions t
+      JOIN ocr_results o ON o.invoice_id = t.invoice_id
+      WHERE t.status = 'ACTIVE'
+        AND t.invoice_id IS NOT NULL
+        AND t.category_id IS NULL
+        AND o.raw_mock_data IS NOT NULL
+    ''');
+
+    for (final row in rows) {
+      final rawMockData = row['raw_mock_data'] as String?;
+      if (rawMockData == null || rawMockData.isEmpty) continue;
+
+      Object? decoded;
+      try {
+        decoded = jsonDecode(rawMockData);
+      } on FormatException {
+        continue;
+      }
+      if (decoded is! Map<String, dynamic>) continue;
+
+      final categoryName = decoded['category_name']?.toString().trim();
+      if (categoryName == null || categoryName.isEmpty) continue;
+
+      final categories = await db.query(
+        'categories',
+        columns: ['category_id'],
+        where: '''
+          company_id = ?
+          AND category_type = ?
+          AND LOWER(TRIM(category_name)) = LOWER(TRIM(?))
+          AND status = 'ACTIVE'
+        ''',
+        whereArgs: [row['company_id'], row['transaction_type'], categoryName],
+        limit: 1,
+      );
+      if (categories.isEmpty) continue;
+
+      await db.update(
+        'transactions',
+        {
+          'category_id': categories.first['category_id'],
+          'updated_at': DateTime.now().toIso8601String(),
+          'is_synced': 0,
+        },
+        where: 'transaction_id = ?',
+        whereArgs: [row['transaction_id']],
+      );
+    }
   }
 
   Future<void> _migrateSyncOwnership(Database db) async {

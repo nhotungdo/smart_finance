@@ -61,7 +61,7 @@ class TransactionApprovalScreen extends ConsumerWidget {
                           ref.invalidate(pendingTransactionsProvider),
                     ),
                     data: (transactions) => transactions.isEmpty
-                        ? _EmptyState(compact: compact)
+                        ? const _EmptyState()
                         : LayoutBuilder(
                             builder: (context, constraints) {
                               if (constraints.maxWidth >= 760) {
@@ -474,9 +474,7 @@ class _TypeChip extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.compact});
-
-  final bool compact;
+  const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
@@ -484,7 +482,7 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       borderRadius: 20,
       child: SizedBox(
-        height: compact ? 160 : 220,
+        height: 160,
         child: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

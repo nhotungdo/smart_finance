@@ -141,9 +141,9 @@ class AppTheme {
         brightness: Brightness.dark,
         seedColor: primaryColor,
         primary: primaryColor,
-        onPrimary: Colors.white,
+        onPrimary: bgColor,
         secondary: secondaryColor,
-        onSecondary: Colors.white,
+        onSecondary: bgColor,
         surface: surfaceColor,
         surfaceContainerHighest: const Color(0xFF334155), // Slate 700
         onSurface: textPrimary,
@@ -235,7 +235,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
+          foregroundColor: bgColor,
           elevation: 2,
           shadowColor: Colors.black.withValues(alpha: 0.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

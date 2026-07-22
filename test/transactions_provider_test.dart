@@ -100,4 +100,22 @@ void main() {
       expect(stored.single['is_synced'], 0);
     },
   );
+
+  test('adding a transaction refreshes without a provider cycle', () async {
+    await container.read(transactionsProvider.future);
+
+    await container
+        .read(transactionsProvider.notifier)
+        .addTransaction(
+          amount: 3850000,
+          transactionType: TransactionType.expense,
+          transactionDate: DateTime(2026, 7, 22),
+          description: 'Chi hoa don',
+          invoiceId: 'invoice-new',
+        );
+
+    final transactions = await container.read(transactionsProvider.future);
+    expect(transactions, hasLength(2));
+    expect(container.read(transactionsProvider).hasError, isFalse);
+  });
 }
